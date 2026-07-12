@@ -1,0 +1,23 @@
+train: /Users/farrellhrs/Documents/CBL/CBL_1/hand_gesture_model/naruto-hand-sign-4/train/images
+val: /Users/farrellhrs/Documents/CBL/CBL_1/hand_gesture_model/naruto-hand-sign-4/valid/images
+test: /Users/farrellhrs/Documents/CBL/CBL_1/hand_gesture_model/naruto-hand-sign-4/test/images
+nc: 12
+names:
+- bird
+- boar
+- dog
+- dragon
+- hare
+- horse
+- monkey
+- ox
+- ram
+- rat
+- snake
+- tiger
+roboflow:
+  workspace: adityas-workshop-kr2u8
+  project: naruto-hand-sign-cyq8u
+  version: 4
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/adityas-workshop-kr2u8/naruto-hand-sign-cyq8u/dataset/4

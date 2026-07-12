@@ -1,0 +1,49 @@
+\chapter{Gameplay}
+
+\section{Game Modes}
+The app supports four user modes:
+\begin{itemize}[leftmargin=2em]
+\item Battle: defend and counterattack against Sasuke with HP and chakra systems.
+\item Free: trigger any supported jutsu without fixed target constraints.
+\item Speed: complete a selected jutsu sequence as fast as possible.
+\item Tutorial: follow guided signs for a selected target jutsu.
+\end{itemize}
+
+\section{Sign Sequence Logic}
+Each recognized sign must be held before commitment, then matched against jutsu sequences. The same recognized signs can produce different outcomes depending on mode and context.
+
+\input{tables/jutsu_sign_sequences}
+
+\section{Battle Mechanics}
+Battle mode adds a state machine around CV inference:
+\begin{enumerate}[leftmargin=2em]
+\item Enemy attack phase selects an incoming jutsu.
+\item Player defend phase expects a specific counter jutsu sequence.
+\item Player attack phase allows offensive jutsu launches.
+\item Round end restores partial chakra and advances battle pacing.
+\end{enumerate}
+
+Counter mapping examples:
+\begin{itemize}[leftmargin=2em]
+\item Fireball or Burning Ash is countered by Water Dragon.
+\item Lightning is countered by Rasengan.
+\end{itemize}
+
+\section{Visual and Audio Feedback}
+\begin{itemize}[leftmargin=2em]
+\item Overlay guidance shows current target sign and sequence progression.
+\item Particle and scene effects represent each jutsu style.
+\item Audio loops adapt volume and rate for active effects such as Rasengan and Wind.
+\end{itemize}
+
+\section{Attached Asset Placeholders}
+\placeholderfigure{asset_character_sasuke}{../naruto_app/naruto_app/character/sasuke.png}{Sasuke character asset placeholder used in battle mode.}
+\placeholderfigure{asset_reference_rasengan}{../naruto_app/naruto_app/image_reference/rasengan.jpg}{Rasengan visual reference asset placeholder.}
+\placeholderfigure{asset_kuchiyose_gamabunta}{../naruto_app/naruto_app/kuchiyose/gamabunta.jpg}{Gamabunta summon asset placeholder.}
+\placeholderfigure{asset_kuchiyose_manda}{../naruto_app/naruto_app/kuchiyose/manda.jpg}{Manda summon asset placeholder.}
+
+\section{App Screenshot Placeholders}
+\placeholderfigure{screenshot_home_view}{figures/screenshots/home_view.png}{Home view screenshot placeholder.}
+\placeholderfigure{screenshot_mode_setup}{figures/screenshots/mode_setup.png}{Mode setup screenshot placeholder.}
+\placeholderfigure{screenshot_tutorial_overlay}{figures/screenshots/tutorial_overlay.png}{Tutorial overlay screenshot placeholder.}
+\placeholderfigure{screenshot_battle_hud}{figures/screenshots/battle_hud.png}{Battle HUD screenshot placeholder.}

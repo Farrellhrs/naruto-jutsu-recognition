@@ -1,0 +1,33 @@
+# --- not part of this project's public release ---
+_removed_backup/
+hand_gesture_model copy/
+hand_gesture_model_1hand/
+Prototype_model/
+MyHandActionClassifier.mlproj/
+
+# --- macOS / editor junk ---
+.DS_Store
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# --- iOS (CocoaPods reinstallable via `pod install`) ---
+naruto_app/Pods/
+xcuserdata/
+*.xcuserstate
+DerivedData/
+
+# --- training data & heavy weights (see README for download) ---
+hand_gesture_model/naruto-hand-sign-4/train/
+hand_gesture_model/naruto-hand-sign-4/valid/
+hand_gesture_model/naruto-hand-sign-4/test/
+*.pt
+labels.cache
+
+# --- LaTeX build artifacts ---
+pdf documentation/main.aux
+pdf documentation/main.fdb_latexmk
+pdf documentation/main.fls
+pdf documentation/main.log
+pdf documentation/main.out
+pdf documentation/main.toc

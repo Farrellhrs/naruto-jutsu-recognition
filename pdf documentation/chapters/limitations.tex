@@ -1,0 +1,40 @@
+\chapter{Limitations and Future Work}
+
+\section{Current Limitations}
+\subsection{Dataset and Labeling}
+\begin{itemize}[leftmargin=2em]
+\item Class imbalance remains visible (for example, tiger vs boar support counts).
+\item Background and lighting variation may still be limited compared to production use.
+\item Label naming mismatch (hare vs rabbit aliasing) adds integration complexity.
+\end{itemize}
+
+\subsection{Model and Inference}
+\begin{itemize}[leftmargin=2em]
+\item RandomForest operates on per-frame static features and does not model temporal dynamics directly.
+\item Confidence thresholds require manual tuning per runtime environment.
+\item Similar hand poses can still produce occasional confusion.
+\end{itemize}
+
+\subsection{iOS Runtime and UX}
+\begin{itemize}[leftmargin=2em]
+\item Performance and stability may vary by device generation and camera quality.
+\item Effects and tracking quality are sensitive to fast motion blur and partial occlusion.
+\item Guidance timing and hold duration messaging should remain synchronized with logic constants.
+\end{itemize}
+
+\section{Recommended Improvements}
+\begin{enumerate}[leftmargin=2em]
+\item Add temporal modeling (sequence-aware classifier or lightweight recurrent model).
+\item Expand training data with multi-user and multi-environment captures.
+\item Automate threshold calibration and per-class confidence analysis.
+\item Add model versioning and reproducible experiment logging.
+\item Build an automated evaluation suite for on-device regression testing.
+\item Integrate screenshot and telemetry capture for documentation updates.
+\end{enumerate}
+
+\section{Documentation Maintenance Plan}
+\begin{itemize}[leftmargin=2em]
+\item Update metrics tables after each model retrain.
+\item Replace placeholders with latest app screenshots before submission.
+\item Keep jutsu-sequence table aligned with \texttt{AppModels.swift} source changes.
+\end{itemize}

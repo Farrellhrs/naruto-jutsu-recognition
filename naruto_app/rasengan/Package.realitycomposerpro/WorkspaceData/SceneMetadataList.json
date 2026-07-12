@@ -1,0 +1,41 @@
+{
+  "98197CE4-93FA-4659-89A9-48744F9AF2C8" : {
+    "objectMetadataList" : [
+      [
+        "98197CE4-93FA-4659-89A9-48744F9AF2C8",
+        "Root",
+        "Timeline"
+      ],
+      {
+        "isExpanded" : true,
+        "isLocked" : false
+      },
+      [
+        "98197CE4-93FA-4659-89A9-48744F9AF2C8",
+        "Root"
+      ],
+      {
+        "isExpanded" : true,
+        "isLocked" : false
+      },
+      [
+        "98197CE4-93FA-4659-89A9-48744F9AF2C8",
+        "Root",
+        "Material"
+      ],
+      {
+        "isExpanded" : true,
+        "isLocked" : false
+      },
+      [
+        "98197CE4-93FA-4659-89A9-48744F9AF2C8",
+        "Root",
+        "Sphere"
+      ],
+      {
+        "isExpanded" : true,
+        "isLocked" : false
+      }
+    ]
+  }
+}

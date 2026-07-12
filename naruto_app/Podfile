@@ -1,0 +1,32 @@
+platform :ios, '15.0'
+
+project 'naruto_app.xcodeproj'
+
+target 'naruto_app' do
+  use_frameworks!
+
+  # MediaPipe Tasks Vision provides runtime hand landmarks for python-parity features.
+  pod 'MediaPipeTasksVision'
+end
+
+post_install do |_installer|
+  support_dir = File.join(__dir__, 'Pods', 'Target Support Files', 'Pods-naruto_app')
+
+  ['debug', 'release'].each do |config|
+    xcconfig_path = File.join(support_dir, "Pods-naruto_app.#{config}.xcconfig")
+    next unless File.exist?(xcconfig_path)
+
+    contents = File.read(xcconfig_path)
+    updated = contents
+      .gsub('-l"MediaPipeTasksCommon"', '-framework "MediaPipeTasksCommon"')
+      .gsub('-l"MediaPipeTasksVision"', '-framework "MediaPipeTasksVision"')
+
+    updated = updated.gsub(
+      'FRAMEWORK_SEARCH_PATHS = $(inherited) "${PODS_ROOT}/MediaPipeTasksCommon/frameworks" "${PODS_ROOT}/MediaPipeTasksVision/frameworks"',
+      'FRAMEWORK_SEARCH_PATHS = $(inherited) "${PODS_ROOT}/MediaPipeTasksCommon/frameworks" "${PODS_ROOT}/MediaPipeTasksVision/frameworks" "${PODS_XCFRAMEWORKS_BUILD_DIR}/MediaPipeTasksCommon" "${PODS_XCFRAMEWORKS_BUILD_DIR}/MediaPipeTasksVision"'
+    )
+
+    next if updated == contents
+    File.write(xcconfig_path, updated)
+  end
+end

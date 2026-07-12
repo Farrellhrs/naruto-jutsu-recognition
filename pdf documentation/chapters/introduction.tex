@@ -1,0 +1,53 @@
+\chapter{Introduction}
+
+\section{Project Overview}
+Jutsu Master is a real-time computer vision application that detects Naruto hand signs from live camera input, classifies gestures with a CoreML model, and maps valid sign sequences into interactive jutsu effects and gameplay states on iOS.
+
+The full stack combines:
+\begin{itemize}[leftmargin=2em]
+\item dataset preparation and training in Python,
+\item feature extraction with MediaPipe hand landmarks,
+\item RandomForest classification exported to CoreML,
+\item iOS runtime inference, sequence logic, visual effects, and audio.
+\end{itemize}
+
+\section{Problem Statement}
+Hand-sign recognition in real-world camera conditions is difficult because of partial visibility, one-hand versus two-hand transitions, and pose variation between users. The project targets a robust unified model that can operate even when only one hand is visible.
+
+\section{Technical Objectives}
+\begin{itemize}[leftmargin=2em]
+\item Build a single feature representation for one-hand and two-hand gestures.
+\item Train a deployable classifier for 12 hand-sign classes.
+\item Export and integrate the model into an iOS app pipeline.
+\item Implement sequence-based jutsu detection and game logic.
+\item Deliver a playable experience across free, tutorial, speed, and battle modes.
+\end{itemize}
+
+\section{Unified Feature Design}
+Each hand contributes 21 landmarks with \(x,y,z\) coordinates.
+
+\[
+d = 2 \times 21 \times 3 = 126
+\]
+
+The model input vector is:
+\[
+\mathbf{x} = [\mathbf{h}_{\text{left}}, \mathbf{h}_{\text{right}}] \in \mathbb{R}^{126}
+\]
+
+If only one hand is detected, the missing side is filled with 63 zeros. This preserves a fixed input dimension while retaining one-hand usability.
+
+\section{End-to-End Runtime Flow}
+\begin{enumerate}[leftmargin=2em]
+\item Capture a camera frame.
+\item Detect hand landmarks (MediaPipe or Vision fallback).
+\item Normalize and merge features into a 126-dimensional vector.
+\item Run CoreML gesture inference.
+\item Apply hold logic and sequence tracking.
+\item Trigger jutsu effect, audio, and mode-specific game state updates.
+\end{enumerate}
+
+\placeholderfigure{system_pipeline}{figures/screenshots/system_pipeline.png}{System pipeline placeholder. Replace with a final architecture diagram or app pipeline screenshot.}
+
+\section{Document Scope}
+This report documents dataset preparation, model training, iOS architecture, gameplay logic, measured results, and current limitations, with figure placeholders for assets and screenshots.

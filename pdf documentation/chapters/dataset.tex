@@ -1,0 +1,64 @@
+\chapter{Dataset}
+
+\section{Source and Annotation Format}
+The training dataset is based on YOLO-style labels where each annotation stores class index and normalized bounding box coordinates.
+
+Primary dataset configuration:
+\begin{itemize}[leftmargin=2em]
+\item Location: \texttt{\detokenize{hand_gesture_model/naruto-hand-sign-4/}}
+\item Config file: \texttt{\detokenize{hand_gesture_model/naruto-hand-sign-4/data.yaml}}
+\item Number of classes: 12
+\item Class names: bird, boar, dog, dragon, hare, horse, monkey, ox, ram, rat, snake, tiger
+\end{itemize}
+
+\section{Data Splits}
+The dataset uses train, validation, and test folder splits:
+\begin{itemize}[leftmargin=2em]
+\item \texttt{\detokenize{train/images}} and \texttt{\detokenize{train/labels}}
+\item \texttt{\detokenize{valid/images}} and \texttt{\detokenize{valid/labels}}
+\item \texttt{\detokenize{test/images}} and \texttt{\detokenize{test/labels}}
+\end{itemize}
+
+\section{Class Taxonomy}
+\begin{table}[H]
+\centering
+\caption{Hand-sign classes from dataset metadata}
+\label{tab:dataset_classes}
+\begin{tabular}{p{0.18\linewidth}p{0.68\linewidth}}
+\toprule
+Class count & 12 \\
+\midrule
+Sign labels & bird, boar, dog, dragon, hare, horse, monkey, ox, ram, rat, snake, tiger \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Class Distribution (Exported Unified Dataset)}
+\begin{table}[H]
+\centering
+\caption{Class counts from \texttt{class\_distribution\_unified.csv}}
+\label{tab:class_distribution}
+\begin{tabular}{p{0.22\linewidth}p{0.18\linewidth}p{0.22\linewidth}p{0.18\linewidth}}
+\toprule
+Class & Count & Class & Count \\
+\midrule
+bird & 124 & monkey & 562 \\
+boar & 105 & ox & 302 \\
+dog & 368 & ram & 370 \\
+dragon & 367 & rat & 259 \\
+hare & 118 & snake & 280 \\
+horse & 455 & tiger & 651 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Label Alias Note}
+In iOS gameplay logic, \textit{hare} is normalized to \textit{rabbit} for asset naming and sequence consistency. This alias handling should be kept explicit in deployment documentation.
+
+\section{Attached Asset Placeholders}
+The following placeholders correspond to attached sign and reference assets.
+
+\placeholderfigure{asset_handsign_bird}{../naruto_app/naruto_app/handsign_image/Bird.webp}{Bird hand-sign reference asset placeholder.}
+\placeholderfigure{asset_handsign_dragon}{../naruto_app/naruto_app/handsign_image/Dragon.webp}{Dragon hand-sign reference asset placeholder.}
+\placeholderfigure{asset_handsign_tiger}{../naruto_app/naruto_app/handsign_image/Tiger.webp}{Tiger hand-sign reference asset placeholder.}
+\placeholderfigure{asset_handsign_rat}{../naruto_app/naruto_app/handsign_image/Rat.png}{Rat hand-sign reference asset placeholder.}

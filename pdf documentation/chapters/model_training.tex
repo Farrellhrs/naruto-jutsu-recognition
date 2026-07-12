@@ -1,0 +1,63 @@
+\chapter{Model Training}
+
+\section{Notebook Scope}
+Training is implemented in:
+\begin{itemize}[leftmargin=2em]
+\item \texttt{\detokenize{hand_gesture_model/train2.ipynb}}
+\end{itemize}
+
+This notebook builds a unified one-hand and two-hand classifier with fixed 126-feature input vectors.
+
+\section{Preprocessing and Feature Extraction}
+For each labeled bounding box:
+\begin{enumerate}[leftmargin=2em]
+\item Read YOLO box and crop hand region.
+\item Detect up to two hands with MediaPipe.
+\item Normalize each hand relative to wrist landmark.
+\item Scale landmarks by the maximum 2D norm.
+\item Assign features to left and right slots.
+\item Zero-pad missing hand slot when only one hand is present.
+\end{enumerate}
+
+Normalization equation per hand:
+\[
+\hat{\mathbf{p}}_i = \mathbf{p}_i - \mathbf{p}_0,
+\quad
+s = \max_j \left\|\hat{\mathbf{p}}_{j,xy}\right\|_2,
+\quad
+\tilde{\mathbf{p}}_i = \frac{\hat{\mathbf{p}}_i}{\max(s,10^{-6})}
+\]
+
+Final feature vector:
+\[
+\mathbf{x} = [\tilde{\mathbf{p}}_{L,1..21},\tilde{\mathbf{p}}_{R,1..21}] \in \mathbb{R}^{126}
+\]
+
+\section{Training Configuration}
+\begin{itemize}[leftmargin=2em]
+\item Model: RandomForestClassifier
+\item Trees: 400
+\item Class balancing: \texttt{balanced\_subsample}
+\item Split: 80:20 stratified train-test
+\item Random seed: 42
+\end{itemize}
+
+\section{Exported Artifacts}
+Unified pipeline outputs are written to:
+\begin{itemize}[leftmargin=2em]
+\item \texttt{\detokenize{hand_gesture_model/naruto-hand-sign-4/phase1_outputs_unified/hand_landmarks_dataset_unified.csv}}
+\item \texttt{\detokenize{hand_gesture_model/naruto-hand-sign-4/phase1_outputs_unified/X_landmarks_unified.npy}}
+\item \texttt{\detokenize{hand_gesture_model/naruto-hand-sign-4/phase1_outputs_unified/y_labels_unified.npy}}
+\item \texttt{\detokenize{hand_gesture_model/naruto-hand-sign-4/phase1_outputs_unified/confusion_matrix_unified.csv}}
+\item \texttt{\detokenize{hand_gesture_model/naruto-hand-sign-4/phase1_outputs_unified/hand_gesture_rf_unified.mlmodel}}
+\item \texttt{\detokenize{hand_gesture_model/naruto-hand-sign-4/phase1_outputs_unified/training_summary_unified.csv}}
+\end{itemize}
+
+\section{Evaluation Metrics}
+\input{tables/evaluation_metrics}
+
+\section{Confusion Matrix Notes}
+The exported confusion matrix shows strong diagonal dominance, with minor confusion among visually similar signs (for example, dragon vs snake, and ram vs tiger under some samples).
+
+\placeholderfigure{confusion_matrix_placeholder}{figures/screenshots/confusion_matrix_heatmap.png}{Confusion matrix heatmap placeholder generated from CSV metrics.}
+\placeholderfigure{training_notebook_outputs}{figures/screenshots/training_notebook_outputs.png}{Notebook output screenshot placeholder for extraction summary and training logs.}

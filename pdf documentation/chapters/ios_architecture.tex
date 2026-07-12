@@ -1,0 +1,61 @@
+\chapter{iOS Architecture}
+
+\section{Application Structure}
+The iOS app is implemented in:
+\begin{itemize}[leftmargin=2em]
+\item \texttt{\detokenize{naruto_app/naruto_app/}}
+\end{itemize}
+
+Top-level flow:
+\begin{itemize}[leftmargin=2em]
+\item \texttt{naruto\_appApp.swift} launches \texttt{ContentView.swift}.
+\item Navigation routes users from Home to Mode Setup and then into game views.
+\item \texttt{CameraGameView.swift} handles free, speed, and tutorial modes.
+\item \texttt{BattleGameView.swift} combines camera inference with battle simulation.
+\end{itemize}
+
+\section{Core Runtime Managers}
+\begin{table}[H]
+\centering
+\caption{Manager responsibilities in the runtime pipeline}
+\label{tab:ios_managers}
+\begin{tabular}{p{0.28\linewidth}p{0.62\linewidth}}
+\toprule
+Component & Responsibility \\
+\midrule
+CameraManager & Camera permission, session setup, frame streaming, orientation and mirroring management. \\
+HandLandmarkDetector & Hand landmark extraction with MediaPipe Tasks and Vision fallback. \\
+FaceDirectionEstimator & Mouth and face direction estimation for fireball and burning ash effects. \\
+GestureRecognizer & Feature preprocessing, CoreML model inference, score formatting, top-k output. \\
+JutsuManager & Hold logic, sequence tracking, mode-specific trigger decisions, effect state memory. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Model and Backend Fallback Strategy}
+\begin{itemize}[leftmargin=2em]
+\item Gesture model loading attempts unified model first, then two-hand, then single-hand model.
+\item Landmark detection attempts MediaPipe runtime task models and falls back to Vision requests if unavailable.
+\item Face direction estimation similarly uses MediaPipe face mesh first with Vision fallback.
+\end{itemize}
+
+\section{Frame-to-Action Pipeline}
+\begin{enumerate}[leftmargin=2em]
+\item Camera delivers a sample buffer.
+\item Hand and face landmarks are extracted.
+\item Landmark vectors are canonicalized for mirror and orientation consistency.
+\item Classifier predicts sign label and confidence.
+\item JutsuManager processes hold and sequence state.
+\item Active jutsu state updates overlays, particles, sounds, and game counters.
+\end{enumerate}
+
+\section{Rendering Stack}
+\begin{itemize}[leftmargin=2em]
+\item \texttt{CameraView.swift} overlays skeletons and effects above AVCapture preview.
+\item CAEmitterLayer handles fire, lightning, and ash particle systems.
+\item SpriteKit scenes handle water dragon and kuchiyose summon animations.
+\item Overlay UI components display target sign guidance and progress strips.
+\end{itemize}
+
+\placeholderfigure{ios_architecture_diagram}{figures/screenshots/ios_architecture_diagram.png}{iOS architecture diagram placeholder.}
+\placeholderfigure{camera_overlay_runtime}{figures/screenshots/runtime_prediction.png}{Runtime camera overlay screenshot placeholder.}

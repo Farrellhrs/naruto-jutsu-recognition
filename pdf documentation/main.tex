@@ -1,0 +1,72 @@
+\documentclass[12pt,a4paper]{report}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{float}
+\usepackage{siunitx}
+\usepackage[hidelinks]{hyperref}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{enumitem}
+\usepackage{xcolor}
+
+\title{Jutsu Master\\Computer Vision and iOS Game Documentation}
+\author{Farrell Habibie Putra Haris}
+\date{\today}
+
+\newcommand{\placeholderfigure}[3]{%
+\begin{figure}[H]
+\centering
+\fbox{%
+\begin{minipage}[c][0.28\textheight][c]{0.88\linewidth}
+\centering
+\textbf{Figure Placeholder}\\[6pt]
+\texttt{\detokenize{#1}}\\[8pt]
+Source candidate:\\
+\texttt{\detokenize{#2}}
+\end{minipage}%
+}
+\caption{#3}
+\label{fig:#1}
+\end{figure}
+}
+
+\begin{document}
+
+\pagenumbering{roman}
+\maketitle
+\tableofcontents
+\clearpage
+
+\pagenumbering{arabic}
+
+\include{chapters/introduction}
+\include{chapters/dataset}
+\include{chapters/model_training}
+\include{chapters/ios_architecture}
+\include{chapters/gameplay}
+\include{chapters/results}
+\include{chapters/limitations}
+
+\appendix
+\chapter{Expected Screenshot Files}
+Place screenshots in the following paths and recompile:
+
+\begin{itemize}[leftmargin=2em]
+\item \texttt{\detokenize{figures/screenshots/home_view.png}}
+\item \texttt{\detokenize{figures/screenshots/mode_setup.png}}
+\item \texttt{\detokenize{figures/screenshots/tutorial_overlay.png}}
+\item \texttt{\detokenize{figures/screenshots/battle_hud.png}}
+\item \texttt{\detokenize{figures/screenshots/runtime_prediction.png}}
+\item \texttt{\detokenize{figures/screenshots/effects_showcase.png}}
+\item \texttt{\detokenize{figures/screenshots/confusion_matrix_heatmap.png}}
+\end{itemize}
+
+\end{document}

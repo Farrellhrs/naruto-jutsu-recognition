@@ -1,0 +1,2 @@
+total_samples,one_hand_samples,two_hand_samples,skipped_images,skipped_boxes,skipped_no_hands,feature_dim,model_accuracy,coreml_exported,coreml_error,dataset_csv,coreml_model
+3961,3289,672,2181,0,2177,126,0.9684741488020177,True,,/Users/farrellhrs/Documents/CBL/CBL_1/hand_gesture_model/naruto-hand-sign-4/phase1_outputs_unified/hand_landmarks_dataset_unified.csv,/Users/farrellhrs/Documents/CBL/CBL_1/hand_gesture_model/naruto-hand-sign-4/phase1_outputs_unified/hand_gesture_rf_unified.mlmodel
