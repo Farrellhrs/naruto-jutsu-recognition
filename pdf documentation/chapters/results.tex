@@ -1,21 +1,25 @@
 \chapter{Results}
 
 \section{Quantitative Summary}
-The unified model achieved strong test accuracy and a successful CoreML export for on-device use.
+The unified model achieved strong held-out test accuracy under the v2
+leak-free evaluation protocol and a successful CoreML export for on-device
+use.
 
 \begin{itemize}[leftmargin=2em]
-\item Test accuracy: 96.85\%
+\item Test accuracy (v2, Roboflow test split): 97.47\%
+\item Test macro-F1 (v2): 0.9709
+\item Reference v1 (pooled random 80:20): 96.85\%
 \item Feature dimension: 126
-\item Usable samples: 3961
-\item One-hand coverage: 83.03\%
-\item Two-hand coverage: 16.97\%
+\item Usable samples: 3961 (train 2768 / valid 798 / test 395)
+\item One-hand coverage: 83.03\%; two-hand coverage: 16.97\%
 \end{itemize}
 
 \section{Model Behavior Observations}
 \begin{itemize}[leftmargin=2em]
-\item Most classes are separated reliably under clean lighting and stable framing.
-\item Minor confusions occur among similar finger formations.
+\item Most classes are separated reliably under clean lighting and stable framing; horse, monkey, dragon, and bird reach 98--100\% F1 on the held-out test split.
+\item The weakest classes are snake (F1 0.92) and boar (F1 0.94), consistent with visually similar finger formations.
 \item One-hand fallback through zero padding improves practical robustness.
+\item Landmark-space augmentation did not help: mirroring reduced test accuracy to 96.46\%, confirming that hand signs are chirality-sensitive, and rotation augmentation also degraded performance (96.96\%). The deployed model uses the clean training set.
 \end{itemize}
 
 \section{iOS Runtime Observations}

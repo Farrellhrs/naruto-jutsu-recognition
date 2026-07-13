@@ -31,3 +31,7 @@ pdf documentation/main.fls
 pdf documentation/main.log
 pdf documentation/main.out
 pdf documentation/main.toc
+
+# SwiftPM test harness build artifacts
+swift_tests/.build/
+pdf documentation/chapters/*.aux

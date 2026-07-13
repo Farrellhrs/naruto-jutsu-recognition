@@ -108,9 +108,9 @@ final class JutsuManager {
         overlay: [[CGPoint]],
         faceDirection: FaceDirectionObservation?,
         mode: AppMode,
-        targetJutsu: JutsuType?
+        targetJutsu: JutsuType?,
+        now: Date = Date()
     ) -> JutsuState {
-        let now = Date()
         let normalized = normalizeSignLabel(label)
 
         if pendingGestureLabel != normalized {

@@ -1,11 +1,22 @@
 import CoreML
 import Foundation
 import ImageIO
+import os.log
+
+extension Logger {
+    static let gestureRecognizer = Logger(subsystem: "com.farrellhrs.narutoapp", category: "GestureRecognizer")
+}
 
 final class GestureRecognizer {
     private let model: MLModel?
     private let landmarkDetector: HandLandmarkDetecting?
     private let faceDirectionEstimator: FaceDirectionEstimating
+
+    // Rolling inference-latency stats (landmarks -> features -> CoreML), logged
+    // once per window so "real-time" is a measured claim, not an assumption.
+    private var latencySampleCount = 0
+    private var latencyAccumulatedMs: Double = 0
+    private let latencyLogWindow = 120
 
     private let featureCount = 126
     private let singleHandFeatureCount = 63
@@ -38,13 +49,20 @@ final class GestureRecognizer {
         )
         faceDirectionEstimator = FaceDirectionEstimatorFactory.makeEstimator(maxRange: 0.10, maxAngleDegrees: 45.0)
 
-        let modelNames = ["hand_gesture_rf_unified", "hand_gesture_rf_twohand", "hand_gesture_rf"]
+        // The unified 126-feature model is the only supported classifier.
+        // Legacy one-hand / two-hand models used incompatible feature layouts,
+        // so silently falling back to them would corrupt predictions.
         var loadedModel: MLModel?
-        for name in modelNames {
-            if let modelURL = Bundle.main.url(forResource: name, withExtension: "mlmodelc") {
-                loadedModel = try? MLModel(contentsOf: modelURL)
-                if loadedModel != nil { break }
+        if let modelURL = Bundle.main.url(forResource: "hand_gesture_rf_unified", withExtension: "mlmodelc") {
+            do {
+                loadedModel = try MLModel(contentsOf: modelURL)
+            } catch {
+                assertionFailure("Failed to load hand_gesture_rf_unified: \(error)")
+                Logger.gestureRecognizer.fault("Failed to load hand_gesture_rf_unified: \(error.localizedDescription)")
             }
+        } else {
+            assertionFailure("hand_gesture_rf_unified.mlmodelc missing from bundle")
+            Logger.gestureRecognizer.fault("hand_gesture_rf_unified.mlmodelc missing from bundle")
         }
         self.model = loadedModel
     }
@@ -59,6 +77,7 @@ final class GestureRecognizer {
     ) throws -> GestureObservation? {
         guard let model, let landmarkDetector else { return nil }
 
+        let inferenceStart = CFAbsoluteTimeGetCurrent()
         let timestampMs = Int64(Date().timeIntervalSince1970 * 1000)
 
         let faceDirection = try faceDirectionEstimator.estimateFaceDirection(
@@ -107,6 +126,7 @@ final class GestureRecognizer {
         }
 
         let prediction = try runBestPrediction(model: model, preprocess: preprocess)
+        recordLatency(sinceStart: inferenceStart)
 
         let score = prediction.confidence * scoreScale
         let topText = formatTopK(probabilities: prediction.probabilities, k: 3, scoreScale: scoreScale)
@@ -119,6 +139,18 @@ final class GestureRecognizer {
             mouthPoint: mouthPoint,
             faceDirection: faceDirection
         )
+    }
+
+    private func recordLatency(sinceStart start: CFAbsoluteTime) {
+        let elapsedMs = (CFAbsoluteTimeGetCurrent() - start) * 1000
+        latencyAccumulatedMs += elapsedMs
+        latencySampleCount += 1
+        if latencySampleCount >= latencyLogWindow {
+            let averageMs = latencyAccumulatedMs / Double(latencySampleCount)
+            Logger.gestureRecognizer.info("Avg pipeline latency over \(self.latencyLogWindow) frames: \(String(format: "%.1f", averageMs)) ms/frame")
+            latencyAccumulatedMs = 0
+            latencySampleCount = 0
+        }
     }
 
     private func selectPrimaryHands(from samples: [HandLandmarkSample]) -> [HandLandmarkSample] {

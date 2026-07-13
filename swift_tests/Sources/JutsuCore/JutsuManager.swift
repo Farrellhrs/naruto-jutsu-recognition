@@ -1,0 +1,1 @@
+../../../naruto_app/naruto_app/Managers/JutsuManager.swift

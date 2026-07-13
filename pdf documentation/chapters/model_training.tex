@@ -38,9 +38,37 @@ Final feature vector:
 \item Model: RandomForestClassifier
 \item Trees: 400
 \item Class balancing: \texttt{balanced\_subsample}
-\item Split: 80:20 stratified train-test
+\item Split (v1, \texttt{train2.ipynb}): 80:20 stratified train-test over pooled samples
+\item Split (v2, \texttt{train\_unified\_v2.py}): original Roboflow train/valid/test folders
 \item Random seed: 42
 \end{itemize}
+
+\section{Evaluation Protocol v2 (Leak-Free Split)}
+The v1 protocol pooled samples from all Roboflow folders and re-split them
+randomly. Because the source dataset contains bursts of near-identical frames
+of the same person performing the same sign, a random split can place sibling
+frames on both sides of the train/test boundary and inflate the estimate.
+
+The v2 protocol (\texttt{\detokenize{hand_gesture_model/train_unified_v2.py}})
+instead honors the dataset's original split: 2{,}768 train, 798 validation,
+and 395 test samples. Model selection uses validation macro-F1 only; the test
+split is evaluated once for the final report.
+
+\subsection{Landmark-Space Augmentation Study}
+Two augmentation variants were evaluated on the training split only:
+\begin{itemize}[leftmargin=2em]
+\item \textbf{Mirror} (2$\times$): negate $x$ after wrist-centering and swap
+the left/right hand blocks.
+\item \textbf{Full} (4$\times$): mirror plus two rotations of $(x,y)$ around
+the wrist by $\pm(5\text{--}15)^{\circ}$ with Gaussian jitter
+($\sigma = 0.01$).
+\end{itemize}
+Neither variant improved validation macro-F1 beyond the selection margin
+(0.005), and both \emph{reduced} held-out test performance (mirror:
+96.46\%; full: 96.96\%; no augmentation: 97.47\%). The mirror result is
+notable: hand signs are chirality-sensitive (which hand crosses on top is
+class-relevant), so mirrored copies inject label noise. The deployed v2
+model therefore uses the clean, non-augmented training set.
 
 \section{Exported Artifacts}
 Unified pipeline outputs are written to:
@@ -51,6 +79,15 @@ Unified pipeline outputs are written to:
 \item \texttt{\detokenize{hand_gesture_model/naruto-hand-sign-4/phase1_outputs_unified/confusion_matrix_unified.csv}}
 \item \texttt{\detokenize{hand_gesture_model/naruto-hand-sign-4/phase1_outputs_unified/hand_gesture_rf_unified.mlmodel}}
 \item \texttt{\detokenize{hand_gesture_model/naruto-hand-sign-4/phase1_outputs_unified/training_summary_unified.csv}}
+\end{itemize}
+
+The v2 pipeline additionally writes to
+\texttt{\detokenize{phase1_outputs_unified_v2/}}:
+\begin{itemize}[leftmargin=2em]
+\item \texttt{\detokenize{hand_gesture_rf_unified.mlmodel}} (deployed to the iOS app)
+\item \texttt{\detokenize{classification_report_v2.txt}} (per-class precision/recall/F1)
+\item \texttt{\detokenize{confusion_matrix_v2.csv}}
+\item \texttt{\detokenize{training_summary_v2.json}}
 \end{itemize}
 
 \section{Evaluation Metrics}

@@ -22,6 +22,19 @@
 \item Guidance timing and hold duration messaging should remain synchronized with logic constants.
 \end{itemize}
 
+\section{Addressed Since v1}
+\begin{itemize}[leftmargin=2em]
+\item Leak-free evaluation protocol honoring the Roboflow train/valid/test split (\texttt{\detokenize{train_unified_v2.py}}), with per-class reports and a documented augmentation study.
+\item Unified-only CoreML model loading with loud failure instead of silent fallback to incompatible legacy models.
+\item Rolling inference-latency instrumentation in \texttt{GestureRecognizer}.
+\item Clock injection in \texttt{JutsuManager.processCandidate} and a 14-test SwiftPM suite (\texttt{swift\_tests/}) covering hold-to-commit, flicker rejection, label aliasing, sequence triggers, time limits, and battle-mode counters.
+\end{itemize}
+
+\section{Known Issues}
+\begin{itemize}[leftmargin=2em]
+\item \textbf{Kuchiyose is unreachable in free mode}: its sequence (boar, horse, monkey, bird) contains wind's (horse, monkey) as a substring; wind triggers at the monkey step and every trigger clears the accepted-sign history. Battle mode is unaffected because the counter follows the target sequence directly. Documented by \texttt{testKnownBugWindPreemptsKuchiyoseInFreeMode}; a fix requires a deliberate trigger-priority design decision (e.g., deferring shorter sequences while a longer one is in progress).
+\end{itemize}
+
 \section{Recommended Improvements}
 \begin{enumerate}[leftmargin=2em]
 \item Add temporal modeling (sequence-aware classifier or lightweight recurrent model).

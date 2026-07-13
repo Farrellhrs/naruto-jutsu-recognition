@@ -1,0 +1,15 @@
+{
+  "train_samples": 2768,
+  "valid_samples": 798,
+  "test_samples": 395,
+  "augmented_train_samples": 11072,
+  "leaky_random_split_accuracy": 0.9685,
+  "clean_split_test_accuracy_no_aug": 0.9747,
+  "clean_split_test_macro_f1_no_aug": 0.9709,
+  "clean_split_test_accuracy_mirror_aug": 0.9646,
+  "clean_split_test_macro_f1_mirror_aug": 0.9585,
+  "clean_split_test_accuracy_full_aug": 0.9696,
+  "clean_split_test_macro_f1_full_aug": 0.9623,
+  "selected_model": "clean",
+  "seed": 42
+}

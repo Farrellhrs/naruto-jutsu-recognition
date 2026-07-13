@@ -18,7 +18,7 @@ Feature vector: fixed 126 floats                         │
     zero-padded when a hand is missing)                  │
    ▼                                                     ▼
 CoreML RandomForest (12 classes) ──► JutsuManager (sequence engine) ──► SwiftUI effects
-   96.85% test accuracy                 hold-to-commit (300 ms),           CAEmitterLayer particles,
+   97.47% held-out test accuracy         hold-to-commit (300 ms),           CAEmitterLayer particles,
                                         wrong-sign reset (2 s),            direction-aware fireballs,
                                         sequence time limits               sound effects
 ```
@@ -43,21 +43,24 @@ The key design decision is the **unified 126-feature representation**: one-hand 
 │       └── (assets)                 # hand-sign reference images, SFX, soundtrack
 ├── hand_gesture_model/              # Python training pipeline
 │   ├── download_dataset.ipynb       # Pull dataset from Roboflow
-│   ├── train2.ipynb                 # ★ Final pipeline: landmarks → unified RF → CoreML
+│   ├── train2.ipynb                 # v1 pipeline: landmarks → unified RF → CoreML
+│   ├── train_unified_v2.py          # ★ v2: leak-free split + augmentation study
 │   ├── train3.ipynb                 # YOLOv8 detector experiment (comparison)
 │   ├── test_camera_unified.py       # Live webcam sanity-check of the exported model
 │   └── naruto-hand-sign-4/
 │       ├── data.yaml                # 12 classes (dataset images git-ignored, see below)
 │       └── phase1_outputs_unified/  # Exported artifacts: .mlmodel, dataset CSVs,
 │                                    # confusion matrix, class distribution, metrics
-└── pdf documentation/main.pdf       # 27-page technical documentation (LaTeX)
+├── swift_tests/                     # SwiftPM harness: 14 unit tests for JutsuManager
+│                                    #   (cd swift_tests && swift test)
+└── pdf documentation/main.pdf       # 28-page technical documentation (LaTeX)
 ```
 
 ## ML Pipeline (hand_gesture_model/)
 
 1. **Dataset** — [Naruto Hand Sign v4](https://universe.roboflow.com/adityas-workshop-kr2u8/naruto-hand-sign-cyq8u/dataset/4) from Roboflow Universe (CC BY 4.0), 6,146 images with YOLO-format bounding boxes over 12 classes: `bird, boar, dog, dragon, hare, horse, monkey, ox, ram, rat, snake, tiger`. Images are git-ignored — re-download with `download_dataset.ipynb`.
 2. **Feature extraction** (`train2.ipynb`) — for every image, MediaPipe Hands extracts 21 landmarks per hand; hands are assigned to left/right slots to form a fixed 126-dim vector (zero-padded when one hand is absent). 3,961 usable samples survive quality filtering (3,289 one-hand, 672 two-hand); 2,177 images are skipped where MediaPipe finds no hands.
-3. **Training** — RandomForest (`n_estimators=400`, `class_weight=balanced_subsample`) with a stratified 80/20 split → **96.85% test accuracy**. Per-class metrics and the confusion matrix are exported alongside the model.
+3. **Training** — RandomForest (`n_estimators=400`, `class_weight=balanced_subsample`). The v2 pipeline (`train_unified_v2.py`) honors the dataset's original train/valid/test split (no random re-split, so no near-duplicate frame leakage) → **97.47% test accuracy / 0.971 macro-F1** on the held-out test split. A landmark-space augmentation study (mirror, rotation+jitter) is included; neither variant helped — mirroring *hurts* because hand signs are chirality-sensitive — so the deployed model uses the clean training set. Per-class metrics and the confusion matrix are exported alongside the model.
 4. **Export** — `coremltools` converts the RF to `hand_gesture_rf_unified.mlmodel`, which is bundled into the iOS app.
 5. **Verification** — `test_camera_unified.py` runs the exact same feature pipeline on a live webcam for parity checking before deployment; `train3.ipynb` documents a YOLOv8 detection alternative evaluated for comparison.
 
@@ -85,7 +88,8 @@ Requires iOS 15+, Xcode with CocoaPods. The Podfile patches MediaPipe's xcconfig
 ```bash
 cd hand_gesture_model
 # 1. download the dataset (Roboflow API key needed) — download_dataset.ipynb
-# 2. run train2.ipynb end-to-end  →  phase1_outputs_unified/hand_gesture_rf_unified.mlmodel
+# 2. run train2.ipynb once to extract landmark features, then:
+python train_unified_v2.py   # →  phase1_outputs_unified_v2/hand_gesture_rf_unified.mlmodel
 # 3. sanity check live:
 python test_camera_unified.py
 # 4. copy the .mlmodel into naruto_app/naruto_app/Model/
@@ -99,8 +103,10 @@ Python deps: `mediapipe==0.10.14`, `coremltools`, `scikit-learn`, `opencv-python
 |---|---|
 | Usable training samples | 3,961 (3,289 one-hand / 672 two-hand) |
 | Feature dimension | 126 (2 × 21 landmarks × 3 coords) |
-| Test accuracy (RF, unified) | **96.85%** |
-| Runtime | Real-time on-device (no network, no server) |
+| Test accuracy (v2, leak-free Roboflow split) | **97.47%** |
+| Test macro-F1 (v2) | 0.9709 |
+| v1 reference (pooled random 80/20 split) | 96.85% |
+| Runtime | Real-time on-device (no network, no server); pipeline latency logged every 120 frames |
 
 Confusion matrix, class distribution, and per-class breakdowns: `hand_gesture_model/naruto-hand-sign-4/phase1_outputs_unified/`.
 

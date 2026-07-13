@@ -34,7 +34,8 @@ JutsuManager & Hold logic, sequence tracking, mode-specific trigger decisions, e
 
 \section{Model and Backend Fallback Strategy}
 \begin{itemize}[leftmargin=2em]
-\item Gesture model loading attempts unified model first, then two-hand, then single-hand model.
+\item Gesture model loading uses the unified 126-feature model exclusively; legacy one-hand and two-hand models were removed because their feature layouts are incompatible and a silent fallback would corrupt predictions. A missing or unloadable model now fails loudly (assertion + fault log).
+\item The recognizer records a rolling average of end-to-end pipeline latency (landmarks $\rightarrow$ features $\rightarrow$ CoreML) and logs it every 120 frames via \texttt{os.log}, so real-time claims are measured.
 \item Landmark detection attempts MediaPipe runtime task models and falls back to Vision requests if unavailable.
 \item Face direction estimation similarly uses MediaPipe face mesh first with Vision fallback.
 \end{itemize}
