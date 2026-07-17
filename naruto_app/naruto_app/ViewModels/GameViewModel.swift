@@ -122,7 +122,13 @@ final class GameViewModel: ObservableObject {
             guard let self else { return }
             defer { self.isProcessingFrame = false }
 
-            self.jutsuManager.tickFireExpiry()
+            if let deferredState = self.jutsuManager.tickFireExpiry() {
+                Task { @MainActor in
+                    self.statusText = deferredState.statusMessage
+                    self.applyJutsuState(deferredState)
+                    self.handleTriggerIfNeeded(deferredState.triggeredJutsu)
+                }
+            }
 
             guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
 
@@ -230,6 +236,7 @@ final class GameViewModel: ObservableObject {
 
     private func applyJutsuState(_ state: JutsuState) {
         let previousProgress = sequenceProgressCount
+        let previousSeenSigns = seenSigns.count
 
         fireActive = state.fireActive
         fireHands = state.fireHands
@@ -246,6 +253,13 @@ final class GameViewModel: ObservableObject {
 
         if state.sequenceProgressCount > previousProgress {
             AudioServicesPlaySystemSound(correctSignSoundID)
+        }
+
+        if state.sequenceProgressCount > previousProgress || state.seenSigns.count > previousSeenSigns {
+            Haptics.signCommitted()
+        }
+        if state.triggeredJutsu != nil {
+            Haptics.jutsuTriggered()
         }
 
         maybePresentTutorialResultIfNeeded(after: state)

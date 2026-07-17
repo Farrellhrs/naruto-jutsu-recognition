@@ -123,22 +123,42 @@ final class JutsuManagerTests: XCTestCase {
                           "kuchiyose must respect its 4.5 s sequence time limit")
     }
 
-    /// Documents a KNOWN BUG in free mode: kuchiyose's sequence
-    /// (boar, horse, monkey, bird) contains wind's (horse, monkey) as a
-    /// substring. Wind fires at the monkey step, and every trigger clears
-    /// the accepted-sign history — so kuchiyose can never complete in free
-    /// mode. If this test starts failing, the bug was fixed: move the
-    /// kuchiyose assertion to expect .kuchiyose and delete this comment.
-    func testKnownBugWindPreemptsKuchiyoseInFreeMode() {
+    // MARK: - Deferred triggers (overlapping sequences)
+
+    /// Kuchiyose's sequence (boar, horse, monkey, bird) contains wind's
+    /// (horse, monkey) as a substring. The deferral fix parks wind while the
+    /// history is still a live prefix of kuchiyose, so the full sequence can
+    /// complete in free mode.
+    func testKuchiyoseCompletesInFreeModeViaDeferral() {
         commit("boar")
         commit("horse")
         let midState = commit("monkey")
-        XCTAssertEqual(midState.triggeredJutsu, .wind,
-                       "wind fires mid-way through the kuchiyose sequence")
+        XCTAssertNil(midState.triggeredJutsu,
+                     "wind must be deferred while kuchiyose is still in progress")
 
         let finalState = commit("bird")
-        XCTAssertNil(finalState.triggeredJutsu,
-                     "history was cleared by the wind trigger, so kuchiyose never completes")
+        XCTAssertEqual(finalState.triggeredJutsu, .kuchiyose)
+    }
+
+    func testStandaloneWindStillFiresImmediately() {
+        // Without the boar prefix there is no longer-sequence overlap,
+        // so wind must not be delayed.
+        commit("horse")
+        let state = commit("monkey")
+        XCTAssertEqual(state.triggeredJutsu, .wind)
+    }
+
+    func testDeferredWindFiresAfterGraceWindowWhenPlayerStops() {
+        commit("boar")
+        commit("horse")
+        let midState = commit("monkey")
+        XCTAssertNil(midState.triggeredJutsu)
+
+        // Player stops signing; after the grace window the parked wind fires.
+        clock = clock.addingTimeInterval(2.0)
+        let deferredState = manager.tickFireExpiry(now: clock)
+        XCTAssertEqual(deferredState?.triggeredJutsu, .wind,
+                       "the deferred wind should fire once the grace window expires")
     }
 
     // MARK: - Battle mode

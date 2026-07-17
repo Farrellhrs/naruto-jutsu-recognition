@@ -24,6 +24,15 @@ final class JutsuManager {
     private var lastAcceptedAt: Date = .distantPast
     private var fireUntil: Date?
 
+    // Deferred-trigger fix for overlapping sequences (free mode):
+    // when a short jutsu completes but the sign history is also a live prefix
+    // of a longer jutsu (e.g. wind's horse->monkey inside kuchiyose's
+    // boar->horse->monkey->bird), the short trigger is parked for a grace
+    // window instead of firing immediately. It fires when the window expires
+    // (player stopped), and is discarded when the longer jutsu completes.
+    private let deferredTriggerGraceWindow: TimeInterval = 1.8
+    private var deferredTrigger: (jutsu: JutsuType, overlay: [[CGPoint]], faceDirection: FaceDirectionObservation?, expiresAt: Date)?
+
     private(set) var fireHands: [CGPoint] = []
     private(set) var fireScales: [CGFloat] = []
     private(set) var mouthPoint: CGPoint?
@@ -71,6 +80,7 @@ final class JutsuManager {
         seenSigns = []
         lastAcceptedLabel = nil
         lastAcceptedAt = .distantPast
+        deferredTrigger = nil
     }
 
     func resetGestureHoldState() {
@@ -79,11 +89,22 @@ final class JutsuManager {
         pendingGestureCommitted = false
     }
 
-    func tickFireExpiry(now: Date = Date()) {
-        guard let until = fireUntil else { return }
-        if now >= until {
+    /// Expires the active effect and fires any deferred trigger whose grace
+    /// window has elapsed. Returns a state snapshot when a deferred jutsu
+    /// fires so the caller can surface it like a normal trigger.
+    @discardableResult
+    func tickFireExpiry(now: Date = Date()) -> JutsuState? {
+        if let until = fireUntil, now >= until {
             deactivateEffectState()
         }
+
+        if let deferred = deferredTrigger, now >= deferred.expiresAt {
+            deferredTrigger = nil
+            activateTrigger(deferred.jutsu, overlay: deferred.overlay, faceDirection: deferred.faceDirection, now: now)
+            return snapshot(status: "\(deferred.jutsu.title) Jutsu!", triggeredJutsu: deferred.jutsu)
+        }
+
+        return nil
     }
 
     func updateLiveFireHands(with overlay: [[CGPoint]]) {
@@ -283,20 +304,46 @@ final class JutsuManager {
             }
         }
 
+        if mode == .free {
+            if let candidate = trigger {
+                // Defer the short trigger while the history is still a live
+                // prefix of a longer sequence that contains it.
+                if longestActivePrefixOverlap(now: now) > candidate.signSequence.count {
+                    deferredTrigger = (candidate, overlay, faceDirection, now.addingTimeInterval(deferredTriggerGraceWindow))
+                    return GestureCommitResult(trigger: nil, status: "\(candidate.title) ready — keep signing…")
+                }
+                deferredTrigger = nil
+            } else if let deferred = deferredTrigger {
+                if longestActivePrefixOverlap(now: now) > deferred.jutsu.signSequence.count {
+                    // Still progressing toward the longer jutsu: extend grace.
+                    deferredTrigger = (deferred.jutsu, deferred.overlay, deferred.faceDirection, now.addingTimeInterval(deferredTriggerGraceWindow))
+                } else {
+                    // The chain broke; the short jutsu's moment has passed.
+                    deferredTrigger = nil
+                }
+            }
+        }
+
         guard let trigger else {
             return GestureCommitResult(trigger: nil, status: progressStatus)
         }
 
+        activateTrigger(trigger, overlay: overlay, faceDirection: faceDirection, now: now)
+
+        return GestureCommitResult(trigger: trigger, status: progressStatus)
+    }
+
+    private func activateTrigger(_ trigger: JutsuType, overlay: [[CGPoint]], faceDirection: FaceDirectionObservation?, now: Date) {
         applyEffectHands(from: overlay)
 
         fireActive = !fireHands.isEmpty
         activeEffectJutsu = trigger
-        self.mouthPoint = faceDirection?.mouthPoint
-        self.fireballDirectionVector = faceDirection?.directionVector
-        self.fireballDirectionVector3D = faceDirection?.directionVector3D
-        self.fireballMouthOpen = faceDirection?.mouthOpen ?? false
-        self.fireballMouthOpenNormalized = faceDirection?.normalizedMouthOpen ?? 0
-        self.fireballDepthScale = faceDirection?.depthScaleFactor ?? 1.0
+        mouthPoint = faceDirection?.mouthPoint
+        fireballDirectionVector = faceDirection?.directionVector
+        fireballDirectionVector3D = faceDirection?.directionVector3D
+        fireballMouthOpen = faceDirection?.mouthOpen ?? false
+        fireballMouthOpenNormalized = faceDirection?.normalizedMouthOpen ?? 0
+        fireballDepthScale = faceDirection?.depthScaleFactor ?? 1.0
         fireUntil = now.addingTimeInterval(5.0)
 
         acceptedSignHistory.removeAll(keepingCapacity: true)
@@ -306,9 +353,34 @@ final class JutsuManager {
         sequentialWrongLabel = nil
         sequentialWrongStart = nil
         seenSigns = []
+        deferredTrigger = nil
         resetGestureHoldState()
+    }
 
-        return GestureCommitResult(trigger: trigger, status: progressStatus)
+    /// Longest L >= 2 such that the last L accepted signs equal the first L
+    /// signs of some jutsu sequence, with the sequence still incomplete and
+    /// (for kuchiyose) still achievable within its time limit.
+    private func longestActivePrefixOverlap(now: Date) -> Int {
+        var best = 0
+        for jutsu in JutsuType.allCases {
+            let sequence = jutsu.signSequence
+            let maxLength = min(acceptedSignHistory.count, sequence.count - 1)
+            guard maxLength >= 2 else { continue }
+
+            for length in stride(from: maxLength, through: 2, by: -1) {
+                guard Array(acceptedSignHistory.suffix(length)) == Array(sequence.prefix(length)) else { continue }
+
+                if jutsu == .kuchiyose,
+                   let first = acceptedSignTimestamps.suffix(length).first,
+                   now.timeIntervalSince(first) > kuchiyoseSequenceTimeLimit {
+                    break
+                }
+
+                best = max(best, length)
+                break
+            }
+        }
+        return best
     }
 
     private func appendAcceptedSign(_ label: String, at now: Date) {

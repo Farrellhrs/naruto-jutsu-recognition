@@ -51,7 +51,7 @@ The key design decision is the **unified 126-feature representation**: one-hand 
 │       ├── data.yaml                # 12 classes (dataset images git-ignored, see below)
 │       └── phase1_outputs_unified/  # Exported artifacts: .mlmodel, dataset CSVs,
 │                                    # confusion matrix, class distribution, metrics
-├── swift_tests/                     # SwiftPM harness: 14 unit tests for JutsuManager
+├── swift_tests/                     # SwiftPM harness: 16 unit tests for JutsuManager
 │                                    #   (cd swift_tests && swift test)
 └── pdf documentation/main.pdf       # 28-page technical documentation (LaTeX)
 ```
@@ -67,9 +67,9 @@ The key design decision is the **unified 126-feature representation**: one-hand 
 ## iOS Runtime (naruto_app/)
 
 - **Recognition loop** — every frame: MediaPipe hand + face landmarkers → 126-feature vector → CoreML → top-label + confidence. Multiple candidate left/right assignments are scored and the best prediction wins.
-- **Sequence engine** (`JutsuManager`) — a sign must be *held* ~300 ms to commit; committed signs advance the current jutsu sequence. Wrong signs held ≥2 s reset progress; Kuchiyose enforces a 4.5 s time limit for its full sequence. This temporal-validation layer is what makes noisy per-frame predictions playable.
+- **Sequence engine** (`JutsuManager`) — a sign must be *held* ~300 ms to commit; committed signs advance the current jutsu sequence. Wrong signs held ≥2 s reset progress; Kuchiyose enforces a 4.5 s time limit for its full sequence. When a short jutsu completes while the history is still a live prefix of a longer one (wind inside kuchiyose), the short trigger is *deferred* for a 1.8 s grace window — it fires if you stop, and yields if the longer jutsu completes. This temporal-validation layer is what makes noisy per-frame predictions playable.
 - **Effects** — jutsu trigger particle systems (`CAEmitterLayer`/`CAShapeLayer`): fireballs launch along the estimated 3D face direction and require an open mouth (Fireball jutsu, like in the show), Chidori crackles at the hand position, with per-jutsu sound effects.
-- **Game modes** — Free (sandbox), Tutorial (guided sign-by-sign), Speed (against the clock), and Battle (turn-based duel with HP, driven by `BattleModeViewModel`).
+- **Game modes** — Free (sandbox), Tutorial (guided sign-by-sign), Speed (against the clock), and Battle: a real-time duel where enemy projectiles deal chip damage unless you counter in time, fast counters score Perfect Blocks (+chakra), chained attacks build combo multipliers (up to 1.6×), and difficulty scales each round — with haptics, screen shake, impact bursts, and hit-flash feedback throughout.
 
 ## Running
 

@@ -30,9 +30,19 @@
 \item Clock injection in \texttt{JutsuManager.processCandidate} and a 14-test SwiftPM suite (\texttt{swift\_tests/}) covering hold-to-commit, flicker rejection, label aliasing, sequence triggers, time limits, and battle-mode counters.
 \end{itemize}
 
-\section{Known Issues}
+\section{Resolved Issues}
 \begin{itemize}[leftmargin=2em]
-\item \textbf{Kuchiyose is unreachable in free mode}: its sequence (boar, horse, monkey, bird) contains wind's (horse, monkey) as a substring; wind triggers at the monkey step and every trigger clears the accepted-sign history. Battle mode is unaffected because the counter follows the target sequence directly. Documented by \texttt{testKnownBugWindPreemptsKuchiyoseInFreeMode}; a fix requires a deliberate trigger-priority design decision (e.g., deferring shorter sequences while a longer one is in progress).
+\item \textbf{Kuchiyose unreachable in free mode (fixed via trigger deferral)}: its sequence (boar, horse, monkey, bird) contains wind's (horse, monkey) as a substring, so wind used to fire at the monkey step and clear the sign history. The fix defers a completed short jutsu for a 1.8\,s grace window whenever the sign history is still a live prefix of a longer sequence that contains it: the short jutsu fires when the window expires (player stopped signing) and is discarded when the longer jutsu completes. Standalone short sequences are unaffected. Covered by three unit tests in \texttt{swift\_tests/}.
+\end{itemize}
+
+\section{Battle Mode v2}
+The battle system was reworked for interactivity:
+\begin{itemize}[leftmargin=2em]
+\item Enemy projectiles now deal chip damage when they cross the player's zone during the defend phase, making defense time-critical rather than a passive pass/fail check.
+\item Defense grading: countering within the first 3\,s of the defend phase scores a \emph{Perfect Block} (+10 chakra).
+\item Attack-phase combos: chaining jutsu within a 4\,s window raises a damage multiplier (up to 1.6$\times$) with on-screen combo feedback.
+\item Difficulty scaling: enemy barrage rate increases 8\% per round, defend windows shorten, and failed-defense damage grows.
+\item Feedback layer: impact-burst rings, enemy hit-flash, screen shake on player damage, distinct victory/defeat overlays, and haptic feedback for sign commits, triggers, blocks, and hits.
 \end{itemize}
 
 \section{Recommended Improvements}

@@ -6,6 +6,7 @@ struct BattleGameView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var cameraViewModel: GameViewModel
     @StateObject private var battleViewModel: BattleModeViewModel
+    @State private var shakeOffset: CGFloat = 0
 
     private let battleTick = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
 
@@ -49,9 +50,15 @@ struct BattleGameView: View {
 
                 sasukeColumn(in: geometry.size)
 
+                if battleViewModel.state == .playerDefend {
+                    dangerZone(in: geometry.size)
+                }
+
                 battleHUD(in: geometry.size)
 
                 projectileLayer
+
+                impactBurstLayer
 
                 floatingFeedbackLayer
 
@@ -82,6 +89,7 @@ struct BattleGameView: View {
                     }
                 }
             }
+            .offset(x: shakeOffset)
             .onAppear {
                 battleViewModel.updateArenaSize(geometry.size)
                 cameraViewModel.start()
@@ -99,6 +107,9 @@ struct BattleGameView: View {
             }
             .onReceive(cameraViewModel.$resultJutsu) { jutsu in
                 battleViewModel.registerPlayerJutsuTrigger(jutsu)
+            }
+            .onChange(of: battleViewModel.playerHitPulse) { _, _ in
+                triggerScreenShake()
             }
             .onDisappear {
                 cameraViewModel.setBattleDefendTarget(nil)
@@ -121,6 +132,11 @@ struct BattleGameView: View {
                 .scaledToFit()
                 .frame(width: max(120, size.width * 0.30), height: max(220, size.height * 0.60))
                 .scaleEffect(isEnemyAttacking ? 1.05 : 1.0)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18)
+                        .fill(Color.white.opacity(battleViewModel.sasukeHitFlash ? 0.55 : 0))
+                        .animation(.easeOut(duration: 0.16), value: battleViewModel.sasukeHitFlash)
+                )
                 .overlay(
                     RoundedRectangle(cornerRadius: 18)
                         .stroke(Color.red.opacity(isEnemyAttacking ? 0.88 : 0), lineWidth: isEnemyAttacking ? 4 : 0)
@@ -190,22 +206,17 @@ struct BattleGameView: View {
                 width: max(220, size.width * 0.64)
             )
 
-            Text("State: \(battleViewModel.state.rawValue) | Round \(battleViewModel.round) | Timer \(Int(ceil(battleViewModel.phaseTimeRemaining)))s")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(Color.black.opacity(0.44))
-                .clipShape(Capsule())
+            phaseBanner(in: size)
 
-            if battleViewModel.state == .playerDefend {
-                Text("Follow the counter hand signs")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 10)
+            if battleViewModel.comboCount >= 2, battleViewModel.state == .playerAttack {
+                Text("COMBO x\(battleViewModel.comboCount)")
+                    .font(.headline.weight(.black))
+                    .foregroundStyle(Color(hex: 0xFFB84D))
+                    .padding(.horizontal, 14)
                     .padding(.vertical, 6)
-                    .background(Color.black.opacity(0.42))
+                    .background(Color.black.opacity(0.55))
                     .clipShape(Capsule())
+                    .transition(.scale.combined(with: .opacity))
             }
 
             Text(battleViewModel.feedbackText)
@@ -219,6 +230,96 @@ struct BattleGameView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 12)
+    }
+
+    private func phaseBanner(in size: CGSize) -> some View {
+        let (label, icon, color) = phaseAppearance
+        let progress = battleViewModel.phaseDuration > 0
+            ? battleViewModel.phaseTimeRemaining / battleViewModel.phaseDuration
+            : 0
+
+        return VStack(spacing: 6) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.caption.weight(.black))
+                Text(label)
+                    .font(.caption.weight(.black))
+                    .textCase(.uppercase)
+                Text("· Round \(battleViewModel.round)")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.75))
+            }
+            .foregroundStyle(color)
+
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.white.opacity(0.18))
+                Capsule()
+                    .fill(color)
+                    .frame(width: max(0, size.width * 0.42 * progress))
+                    .animation(.linear(duration: 0.1), value: progress)
+            }
+            .frame(width: size.width * 0.42, height: 6)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(Color.black.opacity(0.55))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var phaseAppearance: (String, String, Color) {
+        switch battleViewModel.state {
+        case .idle:
+            return ("Get ready", "hourglass", .white)
+        case .enemyAttack:
+            return ("Sasuke attacks", "exclamationmark.triangle.fill", .red)
+        case .playerDefend:
+            return ("Defend — counter now!", "shield.lefthalf.filled", .yellow)
+        case .playerAttack:
+            return ("Your turn — attack!", "flame.fill", .orange)
+        case .roundEnd:
+            return ("Round complete", "checkmark.circle.fill", .green)
+        case .gameOver:
+            return ("Battle over", "flag.checkered", .white)
+        }
+    }
+
+    private func dangerZone(in size: CGSize) -> some View {
+        LinearGradient(
+            colors: [Color.clear, Color.red.opacity(0.34)],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+        .frame(width: size.width * 0.12)
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+    }
+
+    private var impactBurstLayer: some View {
+        ZStack {
+            ForEach(battleViewModel.impactBursts) { burst in
+                let progress = CGFloat(min(1, burst.age / burst.lifetime))
+                Circle()
+                    .stroke(Color(hex: burst.colorHex).opacity(1 - Double(progress)), lineWidth: 4 * (1 - progress) + 1)
+                    .frame(
+                        width: burst.maxRadius * 2 * progress,
+                        height: burst.maxRadius * 2 * progress
+                    )
+                    .position(burst.position)
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func triggerScreenShake() {
+        let sequence: [CGFloat] = [10, -9, 7, -5, 3, 0]
+        for (index, offset) in sequence.enumerated() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.04) {
+                withAnimation(.linear(duration: 0.04)) {
+                    shakeOffset = offset
+                }
+            }
+        }
     }
 
     private var projectileLayer: some View {
@@ -313,9 +414,17 @@ struct BattleGameView: View {
             Color.black.opacity(0.52).ignoresSafeArea()
 
             VStack(spacing: 12) {
-                Text("Game Over")
+                Image(systemName: battleViewModel.playerWon ? "crown.fill" : "xmark.shield.fill")
+                    .font(.system(size: 44, weight: .black))
+                    .foregroundStyle(battleViewModel.playerWon ? .yellow : .red)
+
+                Text(battleViewModel.playerWon ? "Victory!" : "Defeated")
                     .font(.title.weight(.black))
                     .foregroundStyle(.white)
+
+                Text("Survived \(battleViewModel.round) round\(battleViewModel.round == 1 ? "" : "s")")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.8))
 
                 Text(battleViewModel.feedbackText)
                     .font(.headline)

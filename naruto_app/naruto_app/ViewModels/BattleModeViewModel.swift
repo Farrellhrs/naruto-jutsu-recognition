@@ -42,6 +42,15 @@ final class BattleModeViewModel: ObservableObject {
         var lifetime: TimeInterval = 1.0
     }
 
+    struct ImpactBurst: Identifiable {
+        let id = UUID()
+        var position: CGPoint
+        var colorHex: UInt32
+        var age: TimeInterval = 0
+        var lifetime: TimeInterval = 0.45
+        var maxRadius: CGFloat = 46
+    }
+
     @Published private(set) var state: State = .idle
     @Published private(set) var round: Int = 1
     @Published private(set) var playerHP: Int = 100
@@ -50,18 +59,32 @@ final class BattleModeViewModel: ObservableObject {
     @Published private(set) var chakra: Int = 100
     @Published private(set) var activeEnemyJutsu: JutsuType?
     @Published private(set) var phaseTimeRemaining: TimeInterval = 0
+    @Published private(set) var phaseDuration: TimeInterval = 1
     @Published private(set) var feedbackText: String = ""
     @Published private(set) var projectiles: [Projectile] = []
     @Published private(set) var enemyProjectiles: [EnemyProjectile] = []
     @Published private(set) var floatingFeedbacks: [FloatingFeedback] = []
+    @Published private(set) var impactBursts: [ImpactBurst] = []
+    @Published private(set) var comboCount: Int = 0
+    @Published private(set) var sasukeHitFlash = false
+    @Published private(set) var playerHitPulse: Int = 0
+    @Published private(set) var playerWon = false
 
     private(set) var battleEnded = false
     private var defendSucceeded = false
     private var arenaSize: CGSize = .zero
     private var lastAcceptedAttackAt: Date = .distantPast
     private var lastAcceptedAttackJutsu: JutsuType?
+    private var lastComboAt: Date = .distantPast
     private var enemyProjectileSpawnAccumulator: TimeInterval = 0
     private let enemyAttackPool: [JutsuType] = [.lightning, .fireball, .burningAsh]
+    private let comboChainWindow: TimeInterval = 4.0
+
+    /// Right-edge strip the player occupies; enemy projectiles that cross it
+    /// during the defend phase deal chip damage.
+    private var playerZoneX: CGFloat {
+        max(0, arenaSize.width * 0.90)
+    }
 
     init(initialSasukeHP: Int) {
         let clamped = max(60, min(300, initialSasukeHP))
@@ -85,13 +108,17 @@ final class BattleModeViewModel: ObservableObject {
 
     func startBattle() {
         battleEnded = false
+        playerWon = false
         state = .idle
         round = 1
         playerHP = 100
         sasukeHP = sasukeHPMax
         chakra = 100
+        comboCount = 0
+        lastComboAt = .distantPast
         projectiles.removeAll(keepingCapacity: true)
         enemyProjectiles.removeAll(keepingCapacity: true)
+        impactBursts.removeAll(keepingCapacity: true)
         enemyProjectileSpawnAccumulator = 0
         floatingFeedbacks.removeAll(keepingCapacity: true)
         feedbackText = "Prepare for battle"
@@ -112,6 +139,7 @@ final class BattleModeViewModel: ObservableObject {
         updateProjectiles(deltaTime: deltaTime)
         updateEnemyProjectiles(deltaTime: deltaTime)
         updateFloatingFeedbacks(deltaTime: deltaTime)
+        updateImpactBursts(deltaTime: deltaTime)
 
         if state == .playerDefend, let enemyJutsu = activeEnemyJutsu {
             enemyProjectileSpawnAccumulator += deltaTime
@@ -159,6 +187,7 @@ final class BattleModeViewModel: ObservableObject {
         defendSucceeded = false
         activeEnemyJutsu = enemyAttackPool.randomElement() ?? .lightning
         phaseTimeRemaining = 1.5
+        phaseDuration = 1.5
         feedbackText = "Sasuke uses \(activeEnemyJutsu?.title ?? "Attack")"
 
         addFloatingFeedback(
@@ -175,7 +204,8 @@ final class BattleModeViewModel: ObservableObject {
 
     private func startPlayerDefendPhase() {
         state = .playerDefend
-        phaseTimeRemaining = 10.0
+        phaseTimeRemaining = max(6.0, 10.0 - Double(round - 1) * 0.5)
+        phaseDuration = phaseTimeRemaining
         enemyProjectileSpawnAccumulator = 0
         if let activeEnemyJutsu {
             let counter = counterJutsu(for: activeEnemyJutsu)
@@ -193,13 +223,16 @@ final class BattleModeViewModel: ObservableObject {
             return
         }
 
-        applyPlayerDamage(18, reason: "Failed defense")
+        applyPlayerDamage(min(30, 18 + (round - 1) * 2), reason: "Failed defense")
     }
 
     private func startPlayerAttackPhase() {
         guard !battleEnded else { return }
         state = .playerAttack
         phaseTimeRemaining = 10.0
+        phaseDuration = phaseTimeRemaining
+        comboCount = 0
+        lastComboAt = .distantPast
         enemyProjectiles.removeAll(keepingCapacity: true)
         enemyProjectileSpawnAccumulator = 0
         feedbackText = "Counter-attack now"
@@ -209,6 +242,7 @@ final class BattleModeViewModel: ObservableObject {
         guard !battleEnded else { return }
         state = .roundEnd
         phaseTimeRemaining = 1.6
+        phaseDuration = 1.6
         round += 1
         chakra = min(100, chakra + 15)
         enemyProjectiles.removeAll(keepingCapacity: true)
@@ -233,16 +267,19 @@ final class BattleModeViewModel: ObservableObject {
     }
 
     private func enemySpawnInterval(for jutsu: JutsuType) -> TimeInterval {
+        let base: TimeInterval
         switch jutsu {
         case .lightning:
-            return 0.42
+            base = 0.42
         case .burningAsh:
-            return 0.60
+            base = 0.60
         case .fireball:
-            return 0.68
+            base = 0.68
         default:
-            return 0.62
+            base = 0.62
         }
+        // Each round tightens the barrage by 8%, floored so it stays fair.
+        return max(0.26, base * pow(0.92, Double(round - 1)))
     }
 
     private func spawnEnemyProjectileBurst(for jutsu: JutsuType, count: Int = 1) {
@@ -321,13 +358,25 @@ final class BattleModeViewModel: ObservableObject {
 
         if jutsu == target {
             defendSucceeded = true
-            feedbackText = "Perfect defense against \(enemyJutsu.title)"
+            let isPerfect = (phaseDuration - phaseTimeRemaining) <= 3.0
+            if isPerfect {
+                chakra = min(100, chakra + 10)
+                feedbackText = "PERFECT BLOCK! +10 chakra"
+            } else {
+                feedbackText = "Blocked \(enemyJutsu.title)"
+            }
             addFloatingFeedback(
-                text: "BLOCK",
-                colorHex: 0x66FF99,
+                text: isPerfect ? "PERFECT BLOCK" : "BLOCK",
+                colorHex: isPerfect ? 0xFFE066 : 0x66FF99,
                 position: CGPoint(x: max(80, arenaSize.width * 0.70), y: max(120, arenaSize.height * 0.36)),
-                lifetime: 0.9
+                lifetime: isPerfect ? 1.2 : 0.9
             )
+            addImpactBurst(
+                at: CGPoint(x: max(80, arenaSize.width * 0.78), y: max(140, arenaSize.height * 0.42)),
+                colorHex: isPerfect ? 0xFFE066 : 0x66FF99,
+                maxRadius: isPerfect ? 90 : 60
+            )
+            Haptics.defenseSuccess()
             startPlayerAttackPhase()
         } else {
             feedbackText = "Use \(target.title) to counter"
@@ -365,21 +414,38 @@ final class BattleModeViewModel: ObservableObject {
             return
         }
 
+        if now.timeIntervalSince(lastComboAt) <= comboChainWindow, comboCount >= 1 {
+            comboCount += 1
+        } else {
+            comboCount = 1
+        }
+        lastComboAt = now
+        let comboMultiplier = 1.0 + 0.3 * Double(min(comboCount - 1, 2))
+        let comboDamage = Int((Double(profile.damage) * comboMultiplier).rounded())
+
         chakra -= profile.chakraCost
-        feedbackText = "\(jutsu.title) launched"
+        feedbackText = comboCount >= 2 ? "\(jutsu.title) — COMBO x\(comboCount)!" : "\(jutsu.title) launched"
+        if comboCount >= 2 {
+            addFloatingFeedback(
+                text: "COMBO x\(comboCount)",
+                colorHex: 0xFFB84D,
+                position: CGPoint(x: max(60, arenaSize.width * 0.52), y: max(90, arenaSize.height * 0.24)),
+                lifetime: 0.9
+            )
+        }
 
         let spawn = CGPoint(
             x: max(120, arenaSize.width * 0.72),
             y: max(120, arenaSize.height * 0.56)
         )
 
-        let speedX: CGFloat = -(420 + CGFloat(profile.damage * 4))
+        let speedX: CGFloat = -(420 + CGFloat(comboDamage * 4))
         let projectile = Projectile(
             jutsu: jutsu,
             position: spawn,
             velocity: CGVector(dx: speedX, dy: CGFloat.random(in: -12...12)),
             radius: profile.projectileRadius,
-            damage: profile.damage
+            damage: comboDamage
         )
         projectiles.append(projectile)
 
@@ -432,6 +498,18 @@ final class BattleModeViewModel: ObservableObject {
             projectile.position.x += projectile.velocity.dx * deltaTime
             projectile.position.y += (projectile.velocity.dy * deltaTime) + (wobble * CGFloat(deltaTime))
 
+            if state == .playerDefend, !defendSucceeded, arenaSize.width > 10, projectile.position.x >= playerZoneX {
+                let chip = min(8, 3 + (round - 1) / 2 + (projectile.jutsu == .fireball ? 2 : 0))
+                applyPlayerDamage(chip, reason: "Hit by \(projectile.jutsu.title)")
+                addImpactBurst(
+                    at: projectile.position,
+                    colorHex: 0xFF6A6A,
+                    maxRadius: 40
+                )
+                enemyProjectiles.remove(at: idx)
+                continue
+            }
+
             let outOfBounds = projectile.position.x < -80 || projectile.position.x > arenaSize.width + 120 || projectile.position.y < -80 || projectile.position.y > arenaSize.height + 120
             if outOfBounds || projectile.age >= projectile.lifetime {
                 enemyProjectiles.remove(at: idx)
@@ -456,6 +534,9 @@ final class BattleModeViewModel: ObservableObject {
     private func applyDamageToSasuke(_ damage: Int, sourceJutsu: JutsuType, at impactPoint: CGPoint) {
         sasukeHP = max(0, sasukeHP - damage)
         feedbackText = "\(sourceJutsu.title) hit Sasuke for \(damage)"
+        Haptics.enemyHit()
+        addImpactBurst(at: impactPoint, colorHex: 0xFFB84D, maxRadius: 70)
+        flashSasuke()
         addFloatingFeedback(
             text: "-\(damage)",
             colorHex: 0xFF8F8F,
@@ -465,16 +546,19 @@ final class BattleModeViewModel: ObservableObject {
 
         if sasukeHP <= 0 {
             battleEnded = true
+            playerWon = true
             state = .gameOver
             enemyProjectiles.removeAll(keepingCapacity: true)
             phaseTimeRemaining = 0
-            feedbackText = "Sasuke defeated"
+            feedbackText = "Sasuke defeated — Victory!"
         }
     }
 
     private func applyPlayerDamage(_ damage: Int, reason: String) {
         playerHP = max(0, playerHP - damage)
         feedbackText = "\(reason): -\(damage) HP"
+        Haptics.playerHit()
+        playerHitPulse += 1
 
         addFloatingFeedback(
             text: "-\(damage)",
@@ -502,6 +586,28 @@ final class BattleModeViewModel: ObservableObject {
                 lifetime: lifetime
             )
         )
+    }
+
+    private func updateImpactBursts(deltaTime: TimeInterval) {
+        guard !impactBursts.isEmpty else { return }
+        for idx in impactBursts.indices.reversed() {
+            impactBursts[idx].age += deltaTime
+            if impactBursts[idx].age >= impactBursts[idx].lifetime {
+                impactBursts.remove(at: idx)
+            }
+        }
+    }
+
+    private func addImpactBurst(at position: CGPoint, colorHex: UInt32, maxRadius: CGFloat) {
+        impactBursts.append(ImpactBurst(position: position, colorHex: colorHex, maxRadius: maxRadius))
+    }
+
+    private func flashSasuke() {
+        sasukeHitFlash = true
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 160_000_000)
+            self?.sasukeHitFlash = false
+        }
     }
 
     private func attackProfile(for jutsu: JutsuType) -> (chakraCost: Int, damage: Int, projectileRadius: CGFloat) {
