@@ -45,6 +45,7 @@ final class VisionHandLandmarkDetector: HandLandmarkDetecting {
 
     private let request = VNDetectHumanHandPoseRequest()
     private let minJointConfidence: Float
+    private let maxHands: Int
 
     private let jointOrder: [VNHumanHandPoseObservation.JointName] = [
         .wrist,
@@ -58,6 +59,7 @@ final class VisionHandLandmarkDetector: HandLandmarkDetecting {
     init(maxHands: Int, minJointConfidence: Float) {
         request.maximumHandCount = maxHands
         self.minJointConfidence = minJointConfidence
+        self.maxHands = maxHands
     }
 
     func detectHands(
@@ -70,7 +72,7 @@ final class VisionHandLandmarkDetector: HandLandmarkDetecting {
 
         guard let observations = request.results else { return [] }
 
-        return observations.prefix(2).compactMap { observation in
+        return observations.prefix(maxHands).compactMap { observation in
             do {
                 let points = try observation.recognizedPoints(.all)
                 var landmarks: [SIMD3<Float>] = []

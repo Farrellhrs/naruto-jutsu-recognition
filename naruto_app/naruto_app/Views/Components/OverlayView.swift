@@ -70,7 +70,7 @@ struct OverlayView: View {
                             .multilineTextAlignment(.center)
                             .shadow(color: .black.opacity(0.7), radius: 8, x: 0, y: 2)
 
-                        Text("Hold for 1 second")
+                        Text("Hold the sign briefly")
                             .font(.headline.weight(.bold))
                             .foregroundStyle(.white.opacity(0.95))
                             .multilineTextAlignment(.center)

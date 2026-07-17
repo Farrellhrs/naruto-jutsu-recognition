@@ -398,7 +398,7 @@ final class GameViewModel: ObservableObject {
         guard let triggered else { return }
 
         switch config.mode {
-        case .free, .battle:
+        case .free, .battle, .versus:
             resultJutsu = triggered
             showResult = false
         case .tutorial:

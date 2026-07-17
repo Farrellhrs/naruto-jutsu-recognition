@@ -35,6 +35,24 @@
 \item \textbf{Kuchiyose unreachable in free mode (fixed via trigger deferral)}: its sequence (boar, horse, monkey, bird) contains wind's (horse, monkey) as a substring, so wind used to fire at the monkey step and clear the sign history. The fix defers a completed short jutsu for a 1.8\,s grace window whenever the sign history is still a live prefix of a longer sequence that contains it: the short jutsu fires when the window expires (player stopped signing) and is discarded when the longer jutsu completes. Standalone short sequences are unaffected. Covered by three unit tests in \texttt{swift\_tests/}.
 \end{itemize}
 
+\section{Versus Mode (Two Players, One Camera)}
+A new mode splits the camera frame down the middle: the hand landmarker
+tracks up to four hands, hands are grouped by which half of the frame they
+occupy, and each side receives an independent 126-feature prediction from
+the same unified CoreML model. Both players sign simultaneously; a
+completed sequence launches that jutsu at the opponent (damage scales with
+sequence length, 12--34 HP), and casting the elemental counter before an
+incoming jutsu lands blocks it. First player to zero HP loses.
+
+\section{Tutorial Kuchiyose Fix}
+The kuchiyose time limit (previously 4.5\,s) and its instant
+wrong-sign reset are speed-mode challenge rules; they also applied in the
+tutorial, where holding four signs plus reading the on-screen guide almost
+always exceeded the window --- causing the reported ``always fails at the
+last sign'' behavior. The tutorial now learns without the timer and with
+the standard 2\,s wrong-sign grace period, while speed mode keeps both
+rules with the limit relaxed to 6\,s.
+
 \section{Battle Mode v2}
 The battle system was reworked for interactivity:
 \begin{itemize}[leftmargin=2em]

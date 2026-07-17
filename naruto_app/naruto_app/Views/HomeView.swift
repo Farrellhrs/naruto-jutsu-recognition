@@ -153,6 +153,7 @@ private struct ModeCard: View {
     private var accent: Color {
         switch mode {
         case .battle: return .red
+        case .versus: return .purple
         case .free: return .orange
         case .speed: return .yellow
         case .tutorial: return .blue
@@ -162,6 +163,7 @@ private struct ModeCard: View {
     private var subtitle: String {
         switch mode {
         case .battle: return "Duel Sasuke — block his jutsu, counter with your own"
+        case .versus: return "2 players, 1 camera — sign faster than your rival"
         case .free: return "Sandbox: chain any signs and unleash every jutsu"
         case .speed: return "Race the clock to complete a target sequence"
         case .tutorial: return "Learn each hand sign step by step"

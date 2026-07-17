@@ -25,6 +25,8 @@ struct ModeSetupView: View {
                     .foregroundStyle(.white)
 
                 switch mode {
+                case .versus:
+                    versusContent
                 case .battle:
                     battleContent
                 case .tutorial:
@@ -85,6 +87,48 @@ struct ModeSetupView: View {
                     .foregroundStyle(.white)
                 }
             }
+        }
+    }
+
+    private var versusContent: some View {
+        VStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 10) {
+                Label("Two players, one camera", systemImage: "person.2.fill")
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(.white)
+
+                versusRule(icon: "rectangle.split.2x1", text: "Each player takes one half of the frame")
+                versusRule(icon: "hands.sparkles.fill", text: "Complete a sign sequence to launch that jutsu")
+                versusRule(icon: "shield.fill", text: "Cast the counter element before an incoming jutsu lands to block it")
+                versusRule(icon: "heart.fill", text: "100 HP each — first to zero loses")
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.white.opacity(0.10))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+
+            Button {
+                onStart(GameConfig(mode: .versus, selectedJutsu: nil))
+            } label: {
+                Label("Start Duel", systemImage: "flag.2.crossed.fill")
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                    .background(Color.orange.opacity(0.78))
+                    .clipShape(Capsule())
+            }
+            .foregroundStyle(.white)
+        }
+    }
+
+    private func versusRule(icon: String, text: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: icon)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(.orange)
+                .frame(width: 22)
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.85))
         }
     }
 

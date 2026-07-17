@@ -5,6 +5,8 @@ struct CameraGameView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: GameViewModel
     @State private var showTutorialIntro = false
+    @State private var castBannerJutsu: JutsuType?
+    @State private var flashJutsu: JutsuType?
 
     init(config: GameConfig) {
         _viewModel = StateObject(wrappedValue: GameViewModel(config: config))
@@ -40,6 +42,23 @@ struct CameraGameView: View {
                 sequenceProgressCount: viewModel.sequenceProgressCount,
                 showGuidance: viewModel.config.mode != .free
             )
+
+            if let flashJutsu {
+                jutsuFlashColor(flashJutsu)
+                    .opacity(0.28)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .allowsHitTesting(false)
+            }
+
+            if let castBannerJutsu {
+                VStack {
+                    JutsuCastBanner(jutsu: castBannerJutsu)
+                        .padding(.top, 84)
+                    Spacer()
+                }
+                .allowsHitTesting(false)
+            }
 
             if showTutorialIntro,
                viewModel.config.mode == .tutorial,
@@ -87,6 +106,42 @@ struct CameraGameView: View {
             }
         }
         .onDisappear { viewModel.stop() }
+        .onChange(of: viewModel.resultJutsu) { _, newJutsu in
+            guard let newJutsu else { return }
+            presentCastEffects(for: newJutsu)
+        }
+    }
+
+    private func presentCastEffects(for jutsu: JutsuType) {
+        withAnimation(.easeOut(duration: 0.12)) {
+            flashJutsu = jutsu
+            castBannerJutsu = jutsu
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            withAnimation(.easeOut(duration: 0.4)) {
+                flashJutsu = nil
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+            withAnimation(.easeOut(duration: 0.3)) {
+                castBannerJutsu = nil
+            }
+            // In free mode nothing else consumes resultJutsu; clearing it lets
+            // the next cast of the same jutsu re-fire onChange.
+            if viewModel.config.mode == .free {
+                viewModel.resultJutsu = nil
+            }
+        }
+    }
+
+    private func jutsuFlashColor(_ jutsu: JutsuType) -> Color {
+        switch jutsu {
+        case .fireball, .fire, .burningAsh: return .orange
+        case .lightning: return Color(red: 0.55, green: 0.75, blue: 1.0)
+        case .rasengan, .wind: return Color(red: 0.45, green: 0.85, blue: 1.0)
+        case .waterDragon: return Color(red: 0.3, green: 0.6, blue: 1.0)
+        case .kuchiyose: return Color(red: 0.9, green: 0.75, blue: 0.5)
+        }
     }
 }
 

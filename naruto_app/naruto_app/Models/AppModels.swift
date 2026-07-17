@@ -3,6 +3,7 @@ import CoreGraphics
 
 enum AppMode: String, CaseIterable, Hashable {
     case battle
+    case versus
     case free
     case speed
     case tutorial
@@ -10,6 +11,7 @@ enum AppMode: String, CaseIterable, Hashable {
     var title: String {
         switch self {
         case .battle: return "Battle"
+        case .versus: return "Versus"
         case .free: return "Free"
         case .speed: return "Speed"
         case .tutorial: return "Tutorial"
@@ -19,6 +21,7 @@ enum AppMode: String, CaseIterable, Hashable {
     var icon: String {
         switch self {
         case .battle: return "shield.lefthalf.filled"
+        case .versus: return "person.2.fill"
         case .free: return "flame.fill"
         case .speed: return "bolt.fill"
         case .tutorial: return "book.fill"
@@ -106,6 +109,31 @@ enum JutsuType: String, CaseIterable, Hashable {
 
     var signs: Set<String> {
         Set(signSequence)
+    }
+
+    /// Damage dealt in two-player versus mode. Longer sequences pay off more.
+    var versusDamage: Int {
+        switch self {
+        case .fire: return 12
+        case .lightning: return 18
+        case .rasengan: return 20
+        case .wind: return 22
+        case .burningAsh: return 24
+        case .fireball: return 26
+        case .kuchiyose: return 30
+        case .waterDragon: return 34
+        }
+    }
+
+    /// The jutsu that blocks this one in versus / battle mode.
+    var counteredBy: JutsuType {
+        switch self {
+        case .fire, .fireball, .burningAsh: return .waterDragon
+        case .lightning: return .rasengan
+        case .rasengan, .wind: return .lightning
+        case .waterDragon: return .fireball
+        case .kuchiyose: return .kuchiyose
+        }
     }
 }
 

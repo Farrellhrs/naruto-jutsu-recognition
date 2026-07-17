@@ -40,11 +40,11 @@ final class GestureRecognizer {
         let probabilities: [String: Double]
     }
 
-    init() {
+    init(maxHands: Int = 2) {
         let taskModelPath = Bundle.main.url(forResource: "hand_landmarker", withExtension: "task")?.path
         landmarkDetector = HandLandmarkDetectorFactory.makeDetector(
             mediaPipeTaskModelPath: taskModelPath,
-            maxHands: 2,
+            maxHands: maxHands,
             minJointConfidence: minJointConfidence
         )
         faceDirectionEstimator = FaceDirectionEstimatorFactory.makeEstimator(maxRange: 0.10, maxAngleDegrees: 45.0)
@@ -151,6 +151,82 @@ final class GestureRecognizer {
             latencyAccumulatedMs = 0
             latencySampleCount = 0
         }
+    }
+
+    struct VersusSideObservation {
+        let label: String
+        let score: Double
+        let overlayHands: [[CGPoint]]
+    }
+
+    struct VersusFrameObservation {
+        let left: VersusSideObservation?
+        let right: VersusSideObservation?
+    }
+
+    /// Two-player detection: hands are grouped by which half of the frame
+    /// they occupy (after mirroring is canonicalized), and each side gets an
+    /// independent 126-feature prediction. Face features are skipped.
+    func detectVersus(
+        pixelBuffer: CVPixelBuffer,
+        orientation: CGImagePropertyOrientation,
+        captureMirrored: Bool,
+        previewMirrored: Bool,
+        scoreScale: Double
+    ) throws -> VersusFrameObservation {
+        guard let model, let landmarkDetector else {
+            return VersusFrameObservation(left: nil, right: nil)
+        }
+
+        let timestampMs = Int64(Date().timeIntervalSince1970 * 1000)
+        let samples = try landmarkDetector.detectHands(
+            pixelBuffer: pixelBuffer,
+            orientation: orientation,
+            timestampMs: timestampMs
+        )
+
+        var leftSide: [HandLandmarkSample] = []
+        var rightSide: [HandLandmarkSample] = []
+        for sample in samples {
+            let valid = sample.landmarks.filter { !($0.x == 0 && $0.y == 0 && $0.z == 0) }
+            guard !valid.isEmpty else { continue }
+            var meanX = valid.reduce(Float(0)) { $0 + $1.x } / Float(valid.count)
+            if requiresSoftwareMirrorX(captureMirrored: captureMirrored, previewMirrored: previewMirrored) {
+                meanX = 1.0 - meanX
+            }
+            if meanX < 0.5 {
+                leftSide.append(sample)
+            } else {
+                rightSide.append(sample)
+            }
+        }
+
+        func observe(_ sideSamples: [HandLandmarkSample]) -> VersusSideObservation? {
+            let focused = selectPrimaryHands(from: sideSamples)
+            guard !focused.isEmpty else { return nil }
+
+            let overlay = extractOverlayHands(
+                from: focused,
+                captureMirrored: captureMirrored,
+                previewMirrored: previewMirrored
+            )
+
+            guard let preprocess = buildPreprocessResult(
+                from: focused,
+                captureMirrored: captureMirrored,
+                previewMirrored: previewMirrored
+            ), let prediction = try? runBestPrediction(model: model, preprocess: preprocess) else {
+                return VersusSideObservation(label: "unknown", score: 0, overlayHands: overlay)
+            }
+
+            return VersusSideObservation(
+                label: prediction.label,
+                score: prediction.confidence * scoreScale,
+                overlayHands: overlay
+            )
+        }
+
+        return VersusFrameObservation(left: observe(leftSide), right: observe(rightSide))
     }
 
     private func selectPrimaryHands(from samples: [HandLandmarkSample]) -> [HandLandmarkSample] {

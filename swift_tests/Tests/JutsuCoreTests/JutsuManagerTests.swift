@@ -161,6 +161,61 @@ final class JutsuManagerTests: XCTestCase {
                        "the deferred wind should fire once the grace window expires")
     }
 
+    // MARK: - Tutorial mode (kuchiyose learning rules)
+
+    func testTutorialKuchiyoseHasNoTimeLimit() {
+        // A learner takes ~2s per sign — far beyond the old 4.5s window.
+        for sign in ["boar", "horse", "monkey"] {
+            commit(sign, mode: .tutorial, target: .kuchiyose)
+            clock = clock.addingTimeInterval(2.0)
+        }
+        let state = commit("bird", mode: .tutorial, target: .kuchiyose)
+        XCTAssertEqual(state.triggeredJutsu, .kuchiyose,
+                       "tutorial must not enforce the kuchiyose time limit")
+    }
+
+    func testTutorialKuchiyoseSurvivesBriefWrongSign() {
+        commit("boar", mode: .tutorial, target: .kuchiyose)
+        // One misclassified commit must not nuke progress in tutorial.
+        commit("tiger", mode: .tutorial, target: .kuchiyose)
+        XCTAssertEqual(manager.currentSequenceProgressCount, 1,
+                       "a brief wrong sign should use the grace period, not reset kuchiyose progress")
+
+        commit("horse", mode: .tutorial, target: .kuchiyose)
+        commit("monkey", mode: .tutorial, target: .kuchiyose)
+        let state = commit("bird", mode: .tutorial, target: .kuchiyose)
+        XCTAssertEqual(state.triggeredJutsu, .kuchiyose)
+    }
+
+    func testSpeedKuchiyoseStillEnforcesTimeLimit() {
+        for sign in ["boar", "horse", "monkey"] {
+            commit(sign, mode: .speed, target: .kuchiyose)
+            clock = clock.addingTimeInterval(3.0)
+        }
+        let state = commit("bird", mode: .speed, target: .kuchiyose)
+        XCTAssertNil(state.triggeredJutsu,
+                     "speed mode keeps the kuchiyose time-limit challenge")
+    }
+
+    // MARK: - Versus mode
+
+    func testVersusModeTriggersLikeFreeMode() {
+        commit("ox", mode: .versus)
+        let state = commit("monkey", mode: .versus)
+        XCTAssertEqual(state.triggeredJutsu, .lightning)
+    }
+
+    func testVersusDamageAndCounterTablesAreConsistent() {
+        for jutsu in JutsuType.allCases {
+            XCTAssertGreaterThan(jutsu.versusDamage, 0)
+            // Counter relationships must be symmetric enough to be learnable:
+            // every jutsu has a defined counter.
+            _ = jutsu.counteredBy
+        }
+        XCTAssertEqual(JutsuType.fireball.counteredBy, .waterDragon)
+        XCTAssertEqual(JutsuType.lightning.counteredBy, .rasengan)
+    }
+
     // MARK: - Battle mode
 
     func testBattleCounterAdvancesAndTriggersTarget() {

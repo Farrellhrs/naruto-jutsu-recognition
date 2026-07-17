@@ -4,7 +4,7 @@ import CoreGraphics
 final class JutsuManager {
     private let requiredHoldDuration: TimeInterval = 0.3
     private let wrongSignResetDelay: TimeInterval = 2.0
-    private let kuchiyoseSequenceTimeLimit: TimeInterval = 4.5
+    private let kuchiyoseSequenceTimeLimit: TimeInterval = 6.0
     private let knownSigns: Set<String> = [
         "bird", "boar", "dog", "dragon", "hare", "horse", "monkey",
         "ox", "ram", "rat", "snake", "tiger", "rabbit"
@@ -138,13 +138,13 @@ final class JutsuManager {
             pendingGestureLabel = normalized
             pendingGestureStart = now
             pendingGestureCommitted = false
-            return snapshot(status: "Hold \(normalized) 200ms", triggeredJutsu: nil)
+            return snapshot(status: "Hold \(normalized)…", triggeredJutsu: nil)
         }
 
         guard let start = pendingGestureStart else {
             pendingGestureStart = now
             pendingGestureCommitted = false
-            return snapshot(status: "Hold \(normalized) 200ms", triggeredJutsu: nil)
+            return snapshot(status: "Hold \(normalized)…", triggeredJutsu: nil)
         }
 
         let elapsed = now.timeIntervalSince(start)
@@ -203,7 +203,7 @@ final class JutsuManager {
         let trigger: JutsuType?
         let progressStatus: String
         switch mode {
-        case .free:
+        case .free, .versus:
             appendAcceptedSign(label, at: now)
             seenSigns = Set(acceptedSignHistory)
 
@@ -285,7 +285,15 @@ final class JutsuManager {
                 return GestureCommitResult(trigger: nil, status: "Prediction: \(label)")
             }
 
-            let progressUpdate = updateTargetProgress(with: label, targetJutsu: targetJutsu, now: now)
+            // Tutorial is a learning mode: no kuchiyose time limit and the
+            // standard wrong-sign grace period applies. Speed keeps both
+            // challenge rules.
+            let progressUpdate = updateTargetProgress(
+                with: label,
+                targetJutsu: targetJutsu,
+                now: now,
+                enforceKuchiyoseRules: mode == .speed
+            )
             if targetProgressCount == targetJutsu.signSequence.count {
                 trigger = targetJutsu
             } else {
@@ -304,7 +312,7 @@ final class JutsuManager {
             }
         }
 
-        if mode == .free {
+        if mode == .free || mode == .versus {
             if let candidate = trigger {
                 // Defer the short trigger while the history is still a live
                 // prefix of a longer sequence that contains it.
@@ -407,7 +415,7 @@ final class JutsuManager {
         return last.timeIntervalSince(first) <= maxDuration
     }
 
-    private func updateTargetProgress(with label: String, targetJutsu: JutsuType, now: Date) -> TargetProgressUpdate {
+    private func updateTargetProgress(with label: String, targetJutsu: JutsuType, now: Date, enforceKuchiyoseRules: Bool = true) -> TargetProgressUpdate {
         let sequence = targetJutsu.signSequence
         guard !sequence.isEmpty else {
             targetProgressCount = 0
@@ -418,7 +426,8 @@ final class JutsuManager {
             return .wrongIgnored(remainingMs: Int(wrongSignResetDelay * 1000))
         }
 
-        if targetJutsu == .kuchiyose,
+        if enforceKuchiyoseRules,
+           targetJutsu == .kuchiyose,
            let startedAt = targetSequenceStartedAt,
            now.timeIntervalSince(startedAt) > kuchiyoseSequenceTimeLimit {
             targetProgressCount = 0
@@ -448,7 +457,7 @@ final class JutsuManager {
             return .advanced
         }
 
-        if targetJutsu == .kuchiyose {
+        if enforceKuchiyoseRules, targetJutsu == .kuchiyose {
             targetProgressCount = 0
             seenSigns = []
             targetSequenceStartedAt = nil

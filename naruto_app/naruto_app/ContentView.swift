@@ -29,6 +29,8 @@ struct ContentView: View {
                 case .game(let config):
                     if config.mode == .battle {
                         BattleGameView(config: config)
+                    } else if config.mode == .versus {
+                        VersusGameView()
                     } else {
                         CameraGameView(config: config)
                     }
