@@ -13,7 +13,7 @@ struct DojoScreen: View {
             CameraSurface(feed: session.feed)
                 .ignoresSafeArea()
 
-            HandConstellation(hands: session.overlayHands, videoSize: session.videoFrameSize)
+            HandConstellation(hands: session.overlayHands, videoSize: session.videoFrameSize, fillsCanvas: session.feed.usesFillGravity)
                 .ignoresSafeArea()
 
             JutsuEffectsView(castID: session.castCount, jutsu: session.lastCast)

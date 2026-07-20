@@ -20,6 +20,7 @@ final class CameraFeed: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
 
     func attach(displayLayer layer: AVSampleBufferDisplayLayer) {
         displayLayer = layer
+        layer.videoGravity = usesFillGravity ? .resizeAspectFill : .resizeAspect
     }
 
     private let sessionQueue = DispatchQueue(label: "camera.feed.session")
@@ -50,8 +51,33 @@ final class CameraFeed: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
         }
     }
 
+    /// True when frames should aspect-fill the screen (landscape sources);
+    /// false for portrait sources, where fill would crop-zoom drastically.
+    private(set) var usesFillGravity = !CameraFeed.runningOnMac
+
     private func configure() {
-        guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front),
+        var pickedCamera: AVCaptureDevice?
+        var usingExternal = false
+
+        if Self.runningOnMac {
+            // On a Mac, the "front camera" is an emulated iPad camera whose
+            // upright orientation is portrait. The real webcam is exposed as
+            // an external device and delivers native landscape — prefer it.
+            let external = AVCaptureDevice.DiscoverySession(
+                deviceTypes: [.external],
+                mediaType: .video,
+                position: .unspecified
+            ).devices.first
+            if let external, external.deviceType == .external {
+                pickedCamera = external
+                usingExternal = true
+            }
+        }
+        if pickedCamera == nil {
+            pickedCamera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front)
+        }
+
+        guard let camera = pickedCamera,
               let input = try? AVCaptureDeviceInput(device: camera) else {
             return
         }
@@ -79,26 +105,41 @@ final class CameraFeed: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
         if let connection = output.connection(with: .video) {
             videoConnection = connection
 
-            // Let AVFoundation say how much to rotate for upright frames.
-            // This handles every camera correctly — iPhone portrait (90°),
-            // Mac built-in (0°), Continuity Camera in any mount — instead of
-            // per-platform guessing, and tracks changes if the source moves.
-            let coordinator = AVCaptureDevice.RotationCoordinator(device: camera, previewLayer: nil)
-            rotationCoordinator = coordinator
-            applyRotation(coordinator.videoRotationAngleForHorizonLevelCapture)
-            rotationObservation = coordinator.observe(
-                \.videoRotationAngleForHorizonLevelCapture,
-                options: [.new]
-            ) { [weak self] _, change in
-                guard let angle = change.newValue else { return }
-                self?.sessionQueue.async {
-                    self?.applyRotation(angle)
+            if Self.runningOnMac {
+                // The emulated iPad camera's synthetic orientation metadata
+                // makes RotationCoordinator report 0 even though upright is
+                // 90 (verified empirically). The real external webcam is
+                // native landscape and needs no rotation.
+                let angle: CGFloat = usingExternal ? 0 : 90
+                applyRotation(angle)
+                usesFillGravity = usingExternal
+            } else {
+                // Real devices: let AVFoundation report the upright angle
+                // (iPhone portrait 90°, Continuity Camera any mount) and
+                // track changes.
+                let coordinator = AVCaptureDevice.RotationCoordinator(device: camera, previewLayer: nil)
+                rotationCoordinator = coordinator
+                applyRotation(coordinator.videoRotationAngleForHorizonLevelCapture)
+                rotationObservation = coordinator.observe(
+                    \.videoRotationAngleForHorizonLevelCapture,
+                    options: [.new]
+                ) { [weak self] _, change in
+                    guard let angle = change.newValue else { return }
+                    self?.sessionQueue.async {
+                        self?.applyRotation(angle)
+                    }
                 }
             }
 
             if connection.isVideoMirroringSupported {
                 connection.isVideoMirrored = true
             }
+        }
+
+        // Push the gravity decision to the display layer once it is known.
+        let fill = usesFillGravity
+        DispatchQueue.main.async { [weak self] in
+            self?.displayLayer?.videoGravity = fill ? .resizeAspectFill : .resizeAspect
         }
 
         session.commitConfiguration()

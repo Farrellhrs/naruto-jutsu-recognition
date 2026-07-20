@@ -117,7 +117,7 @@ private struct SignPracticeScreen: View {
             CameraSurface(feed: session.feed)
                 .ignoresSafeArea()
 
-            HandConstellation(hands: session.overlayHands, videoSize: session.videoFrameSize)
+            HandConstellation(hands: session.overlayHands, videoSize: session.videoFrameSize, fillsCanvas: session.feed.usesFillGravity)
                 .ignoresSafeArea()
 
             VStack {

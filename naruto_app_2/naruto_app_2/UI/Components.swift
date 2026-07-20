@@ -24,11 +24,11 @@ struct CameraSurface: UIViewRepresentable {
 
     func makeUIView(context: Context) -> Surface {
         let view = Surface()
-        // Fill on iPhone; fit on Mac where windows have arbitrary aspect
-        // ratios. HandConstellation.displayedVideoRect uses the same rule,
-        // and the layer renders the very buffers recognition analyzes, so
+        // Gravity is decided by CameraFeed based on the actual source
+        // (landscape sources fill, portrait sources fit) and applied in
+        // attach(displayLayer:). HandConstellation uses the same flag, and
+        // the layer renders the very buffers recognition analyzes, so
         // overlay and video are always in exact agreement.
-        view.display.videoGravity = CameraFeed.runningOnMac ? .resizeAspect : .resizeAspectFill
         feed.attach(displayLayer: view.display)
         return view
     }
@@ -43,6 +43,7 @@ struct CameraSurface: UIViewRepresentable {
 struct HandConstellation: View {
     let hands: [[CGPoint]]
     var videoSize: CGSize = .zero
+    var fillsCanvas = true
 
     /// Bone connections in MediaPipe/Vision 21-landmark ordering.
     private static let bones: [(Int, Int)] = [
@@ -59,7 +60,7 @@ struct HandConstellation: View {
             // aspect-fit letterboxes it (Mac), aspect-fill crops it (iPhone).
             // Landmarks are normalized to the video frame, so map them into
             // the rectangle the video actually occupies on screen.
-            let target = Self.displayedVideoRect(videoSize: videoSize, in: size)
+            let target = Self.displayedVideoRect(videoSize: videoSize, in: size, fill: fillsCanvas)
 
             for hand in hands {
                 guard hand.count == 21 else { continue }
@@ -92,14 +93,14 @@ struct HandConstellation: View {
         .allowsHitTesting(false)
     }
 
-    static func displayedVideoRect(videoSize: CGSize, in canvas: CGSize) -> CGRect {
+    static func displayedVideoRect(videoSize: CGSize, in canvas: CGSize, fill: Bool) -> CGRect {
         guard videoSize.width > 0, videoSize.height > 0,
               canvas.width > 0, canvas.height > 0 else {
             return CGRect(origin: .zero, size: canvas)
         }
         let scaleFit = min(canvas.width / videoSize.width, canvas.height / videoSize.height)
         let scaleFill = max(canvas.width / videoSize.width, canvas.height / videoSize.height)
-        let scale = CameraFeed.runningOnMac ? scaleFit : scaleFill
+        let scale = fill ? scaleFill : scaleFit
         let width = videoSize.width * scale
         let height = videoSize.height * scale
         return CGRect(
