@@ -13,6 +13,15 @@ final class CameraFeed: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
     /// Set on the main queue once the session is running.
     var onReadyChange: ((Bool) -> Void)?
 
+    /// The on-screen video surface. It is fed the exact buffers that go to
+    /// recognition, so the preview and the landmark overlay can never
+    /// disagree about rotation, mirroring, or aspect.
+    private weak var displayLayer: AVSampleBufferDisplayLayer?
+
+    func attach(displayLayer layer: AVSampleBufferDisplayLayer) {
+        displayLayer = layer
+    }
+
     private let sessionQueue = DispatchQueue(label: "camera.feed.session")
     private let outputQueue = DispatchQueue(label: "camera.feed.output", qos: .userInitiated)
     private var configured = false
@@ -86,6 +95,29 @@ final class CameraFeed: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
         didOutput sampleBuffer: CMSampleBuffer,
         from connection: AVCaptureConnection
     ) {
+        if let layer = displayLayer {
+            markDisplayImmediately(sampleBuffer)
+            let renderer = layer.sampleBufferRenderer
+            if renderer.requiresFlushToResumeDecoding {
+                renderer.flush()
+            }
+            if renderer.isReadyForMoreMediaData {
+                renderer.enqueue(sampleBuffer)
+            }
+        }
         onFrame?(sampleBuffer)
+    }
+
+    /// Live camera buffers carry device-clock timestamps the display layer
+    /// has no timebase for; mark them to render as soon as they arrive.
+    private func markDisplayImmediately(_ sampleBuffer: CMSampleBuffer) {
+        guard let attachments = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, createIfNecessary: true),
+              CFArrayGetCount(attachments) > 0 else { return }
+        let dict = unsafeBitCast(CFArrayGetValueAtIndex(attachments, 0), to: CFMutableDictionary.self)
+        CFDictionarySetValue(
+            dict,
+            Unmanaged.passUnretained(kCMSampleAttachmentKey_DisplayImmediately).toOpaque(),
+            Unmanaged.passUnretained(kCFBooleanTrue).toOpaque()
+        )
     }
 }

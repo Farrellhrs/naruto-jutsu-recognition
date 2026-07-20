@@ -23,9 +23,9 @@ final class ShinobiSession {
     private(set) var castCount = 0
     private(set) var commitCount = 0
 
-    var session: AVCaptureSession { feed.session }
 
-    private let feed = CameraFeed()
+
+    let feed = CameraFeed()
     private let engine = SignRecognitionEngine()
     private var sequencer = SignSequencer()
     private let inferenceQueue = DispatchQueue(label: "shinobi.inference", qos: .userInitiated)

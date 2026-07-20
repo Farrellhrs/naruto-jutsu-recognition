@@ -132,7 +132,7 @@ private struct TrialRunScreen: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            CameraSurface(session: session.session)
+            CameraSurface(feed: session.feed)
                 .ignoresSafeArea()
 
             HandConstellation(hands: session.overlayHands, videoSize: session.videoFrameSize)

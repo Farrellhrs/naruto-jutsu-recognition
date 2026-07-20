@@ -15,28 +15,27 @@ enum Ink {
 // MARK: - Camera preview
 
 struct CameraSurface: UIViewRepresentable {
-    let session: AVCaptureSession
+    let feed: CameraFeed
 
     final class Surface: UIView {
-        override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }
-        var preview: AVCaptureVideoPreviewLayer { layer as! AVCaptureVideoPreviewLayer }
+        override class var layerClass: AnyClass { AVSampleBufferDisplayLayer.self }
+        var display: AVSampleBufferDisplayLayer { layer as! AVSampleBufferDisplayLayer }
     }
 
     func makeUIView(context: Context) -> Surface {
         let view = Surface()
-        view.preview.session = session
-        // Fill on iPhone; on Mac windows have arbitrary aspect ratios, so
-        // fit the frame instead of crop-zooming into it.
-        view.preview.videoGravity = CameraFeed.runningOnMac ? .resizeAspect : .resizeAspectFill
-        if CameraFeed.runningOnMac,
-           let connection = view.preview.connection,
-           connection.isVideoRotationAngleSupported(0) {
-            connection.videoRotationAngle = 0
-        }
+        // Fill on iPhone; fit on Mac where windows have arbitrary aspect
+        // ratios. HandConstellation.displayedVideoRect uses the same rule,
+        // and the layer renders the very buffers recognition analyzes, so
+        // overlay and video are always in exact agreement.
+        view.display.videoGravity = CameraFeed.runningOnMac ? .resizeAspect : .resizeAspectFill
+        feed.attach(displayLayer: view.display)
         return view
     }
 
-    func updateUIView(_ uiView: Surface, context: Context) {}
+    func updateUIView(_ uiView: Surface, context: Context) {
+        feed.attach(displayLayer: uiView.display)
+    }
 }
 
 // MARK: - Chakra constellation (hand skeleton overlay)
