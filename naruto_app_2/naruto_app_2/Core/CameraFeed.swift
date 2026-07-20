@@ -25,6 +25,9 @@ final class CameraFeed: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
     private let sessionQueue = DispatchQueue(label: "camera.feed.session")
     private let outputQueue = DispatchQueue(label: "camera.feed.output", qos: .userInitiated)
     private var configured = false
+    private var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
+    private var rotationObservation: NSKeyValueObservation?
+    private weak var videoConnection: AVCaptureConnection?
 
     func start() {
         sessionQueue.async { [weak self] in
@@ -74,13 +77,25 @@ final class CameraFeed: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
         session.addOutput(output)
 
         if let connection = output.connection(with: .video) {
-            // On iPhone the interface is portrait, so rotate the landscape
-            // sensor feed 90 degrees. On a Mac (Designed for iPad / Catalyst)
-            // both camera and window are landscape — rotating there makes
-            // aspect-fill crop the frame into a huge zoom.
-            if !Self.runningOnMac, connection.isVideoRotationAngleSupported(90) {
-                connection.videoRotationAngle = 90
+            videoConnection = connection
+
+            // Let AVFoundation say how much to rotate for upright frames.
+            // This handles every camera correctly — iPhone portrait (90°),
+            // Mac built-in (0°), Continuity Camera in any mount — instead of
+            // per-platform guessing, and tracks changes if the source moves.
+            let coordinator = AVCaptureDevice.RotationCoordinator(device: camera, previewLayer: nil)
+            rotationCoordinator = coordinator
+            applyRotation(coordinator.videoRotationAngleForHorizonLevelCapture)
+            rotationObservation = coordinator.observe(
+                \.videoRotationAngleForHorizonLevelCapture,
+                options: [.new]
+            ) { [weak self] _, change in
+                guard let angle = change.newValue else { return }
+                self?.sessionQueue.async {
+                    self?.applyRotation(angle)
+                }
             }
+
             if connection.isVideoMirroringSupported {
                 connection.isVideoMirrored = true
             }
@@ -88,6 +103,12 @@ final class CameraFeed: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
 
         session.commitConfiguration()
         configured = true
+    }
+
+    private func applyRotation(_ angle: CGFloat) {
+        guard let connection = videoConnection,
+              connection.isVideoRotationAngleSupported(angle) else { return }
+        connection.videoRotationAngle = angle
     }
 
     func captureOutput(
