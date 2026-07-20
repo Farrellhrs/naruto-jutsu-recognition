@@ -35,3 +35,8 @@ pdf documentation/main.toc
 # SwiftPM test harness build artifacts
 swift_tests/.build/
 pdf documentation/chapters/*.aux
+
+# Xcode local state
+naruto_app_2.xcodeproj/xcuserdata/
+naruto_app_2.xcodeproj/project.xcworkspace/xcuserdata/
+**/xcuserdata/

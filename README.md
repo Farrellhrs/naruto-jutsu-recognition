@@ -51,6 +51,8 @@ The key design decision is the **unified 126-feature representation**: one-hand 
 │       ├── data.yaml                # 12 classes (dataset images git-ignored, see below)
 │       └── phase1_outputs_unified/  # Exported artifacts: .mlmodel, dataset CSVs,
 │                                    # confusion matrix, class distribution, metrics
+├── naruto_app_2/                    # ★ v2 ground-up rebuild: Vision-only (no pods),
+│                                    #   @Observable + SpriteKit effects, Dojo/Academy/Trials
 ├── swift_tests/                     # SwiftPM harness: 21 unit tests for JutsuManager
 │                                    #   (cd swift_tests && swift test)
 └── pdf documentation/main.pdf       # 28-page technical documentation (LaTeX)
