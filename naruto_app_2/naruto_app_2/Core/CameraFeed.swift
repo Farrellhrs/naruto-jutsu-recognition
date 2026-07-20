@@ -3,6 +3,8 @@ import CoreMedia
 
 /// Thin AVFoundation wrapper: front camera in, sample buffers out.
 final class CameraFeed: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
+    static let runningOnMac = ProcessInfo.processInfo.isiOSAppOnMac || ProcessInfo.processInfo.isMacCatalystApp
+
     let session = AVCaptureSession()
 
     /// Called on the capture queue for every frame.
@@ -63,8 +65,12 @@ final class CameraFeed: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
         session.addOutput(output)
 
         if let connection = output.connection(with: .video) {
-            if connection.isVideoRotationAngleSupported(90) {
-                connection.videoRotationAngle = 90 // portrait
+            // On iPhone the interface is portrait, so rotate the landscape
+            // sensor feed 90 degrees. On a Mac (Designed for iPad / Catalyst)
+            // both camera and window are landscape — rotating there makes
+            // aspect-fill crop the frame into a huge zoom.
+            if !Self.runningOnMac, connection.isVideoRotationAngleSupported(90) {
+                connection.videoRotationAngle = 90
             }
             if connection.isVideoMirroringSupported {
                 connection.isVideoMirrored = true

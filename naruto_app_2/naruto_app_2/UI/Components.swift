@@ -25,7 +25,14 @@ struct CameraSurface: UIViewRepresentable {
     func makeUIView(context: Context) -> Surface {
         let view = Surface()
         view.preview.session = session
-        view.preview.videoGravity = .resizeAspectFill
+        // Fill on iPhone; on Mac windows have arbitrary aspect ratios, so
+        // fit the frame instead of crop-zooming into it.
+        view.preview.videoGravity = CameraFeed.runningOnMac ? .resizeAspect : .resizeAspectFill
+        if CameraFeed.runningOnMac,
+           let connection = view.preview.connection,
+           connection.isVideoRotationAngleSupported(0) {
+            connection.videoRotationAngle = 0
+        }
         return view
     }
 
