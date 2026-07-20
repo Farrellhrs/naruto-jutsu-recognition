@@ -43,6 +43,7 @@ struct CameraSurface: UIViewRepresentable {
 
 struct HandConstellation: View {
     let hands: [[CGPoint]]
+    var videoSize: CGSize = .zero
 
     /// Bone connections in MediaPipe/Vision 21-landmark ordering.
     private static let bones: [(Int, Int)] = [
@@ -55,13 +56,22 @@ struct HandConstellation: View {
 
     var body: some View {
         Canvas { context, size in
+            // The camera video does not necessarily cover the whole canvas:
+            // aspect-fit letterboxes it (Mac), aspect-fill crops it (iPhone).
+            // Landmarks are normalized to the video frame, so map them into
+            // the rectangle the video actually occupies on screen.
+            let target = Self.displayedVideoRect(videoSize: videoSize, in: size)
+
             for hand in hands {
                 guard hand.count == 21 else { continue }
 
                 func pt(_ index: Int) -> CGPoint? {
                     let p = hand[index]
                     guard p.x >= 0 else { return nil }
-                    return CGPoint(x: p.x * size.width, y: p.y * size.height)
+                    return CGPoint(
+                        x: target.minX + p.x * target.width,
+                        y: target.minY + p.y * target.height
+                    )
                 }
 
                 var bonePath = Path()
@@ -81,6 +91,24 @@ struct HandConstellation: View {
             }
         }
         .allowsHitTesting(false)
+    }
+
+    static func displayedVideoRect(videoSize: CGSize, in canvas: CGSize) -> CGRect {
+        guard videoSize.width > 0, videoSize.height > 0,
+              canvas.width > 0, canvas.height > 0 else {
+            return CGRect(origin: .zero, size: canvas)
+        }
+        let scaleFit = min(canvas.width / videoSize.width, canvas.height / videoSize.height)
+        let scaleFill = max(canvas.width / videoSize.width, canvas.height / videoSize.height)
+        let scale = CameraFeed.runningOnMac ? scaleFit : scaleFill
+        let width = videoSize.width * scale
+        let height = videoSize.height * scale
+        return CGRect(
+            x: (canvas.width - width) / 2,
+            y: (canvas.height - height) / 2,
+            width: width,
+            height: height
+        )
     }
 }
 

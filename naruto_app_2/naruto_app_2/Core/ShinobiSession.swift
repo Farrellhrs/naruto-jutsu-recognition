@@ -15,6 +15,7 @@ final class ShinobiSession {
     private(set) var confidence: Double = 0
     private(set) var recentSigns: [HandSign] = []
     private(set) var overlayHands: [[CGPoint]] = []
+    private(set) var videoFrameSize: CGSize = .zero
     private(set) var cameraReady = false
 
     // Events
@@ -78,6 +79,7 @@ final class ShinobiSession {
 
     private func apply(_ reading: SignReading) {
         overlayHands = reading.hands
+        videoFrameSize = reading.frameSize
         confidence = reading.confidence
 
         let confidentSign = reading.confidence >= minimumConfidence ? reading.sign : nil

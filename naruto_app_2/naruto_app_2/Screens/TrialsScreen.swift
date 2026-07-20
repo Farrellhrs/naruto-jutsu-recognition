@@ -135,7 +135,7 @@ private struct TrialRunScreen: View {
             CameraSurface(session: session.session)
                 .ignoresSafeArea()
 
-            HandConstellation(hands: session.overlayHands)
+            HandConstellation(hands: session.overlayHands, videoSize: session.videoFrameSize)
                 .ignoresSafeArea()
 
             JutsuEffectsView(castID: session.castCount, jutsu: session.lastCast)

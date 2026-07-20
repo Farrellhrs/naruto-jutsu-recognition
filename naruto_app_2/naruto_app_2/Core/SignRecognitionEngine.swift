@@ -10,6 +10,9 @@ struct SignReading {
     /// Normalized (0-1, top-left origin) landmark points per detected hand,
     /// for drawing the chakra-constellation overlay.
     let hands: [[CGPoint]]
+    /// Pixel dimensions of the analyzed frame, so overlays can map
+    /// normalized coordinates into the on-screen video rectangle.
+    let frameSize: CGSize
 }
 
 /// Vision hand pose -> wrist-centered scale-normalized 126 features ->
@@ -47,10 +50,15 @@ final class SignRecognitionEngine {
         guard let model,
               let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return nil }
 
+        let frameSize = CGSize(
+            width: CVPixelBufferGetWidth(pixelBuffer),
+            height: CVPixelBufferGetHeight(pixelBuffer)
+        )
+
         let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .up)
         guard (try? handler.perform([poseRequest])) != nil,
               let observations = poseRequest.results, !observations.isEmpty else {
-            return SignReading(sign: nil, rawLabel: "", confidence: 0, hands: [])
+            return SignReading(sign: nil, rawLabel: "", confidence: 0, hands: [], frameSize: frameSize)
         }
 
         var leftBlock = [Float](repeating: 0, count: 63)
@@ -101,18 +109,19 @@ final class SignRecognitionEngine {
 
         let features = leftBlock + rightBlock
         guard features.contains(where: { $0 != 0 }) else {
-            return SignReading(sign: nil, rawLabel: "", confidence: 0, hands: overlayHands)
+            return SignReading(sign: nil, rawLabel: "", confidence: 0, hands: overlayHands, frameSize: frameSize)
         }
 
         guard let (label, confidence) = Self.predict(model: model, features: features) else {
-            return SignReading(sign: nil, rawLabel: "", confidence: 0, hands: overlayHands)
+            return SignReading(sign: nil, rawLabel: "", confidence: 0, hands: overlayHands, frameSize: frameSize)
         }
 
         return SignReading(
             sign: HandSign.from(label: label),
             rawLabel: label,
             confidence: confidence,
-            hands: overlayHands
+            hands: overlayHands,
+            frameSize: frameSize
         )
     }
 
