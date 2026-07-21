@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shinobi Trainer — Hand-Sign Jutsu in the Browser</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@600;900&family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.min.js"></script>
+</head>
+<body>
+  <!-- ============ MENU ============ -->
+  <section id="screen-menu">
+    <header class="hero">
+      <div class="hero-mark">忍</div>
+      <h1>Shinobi Trainer</h1>
+      <p class="tagline">Real hand signs. Real jutsu. Straight from your camera.</p>
+      <p id="load-status" class="load-status">initializing…</p>
+    </header>
+
+    <div class="menu-grid">
+      <button id="btn-dojo" class="mode-card" style="--accent:#ffd66b">
+        <span class="mode-kanji">道場</span>
+        <span class="mode-name">Dojo</span>
+        <span class="mode-desc">Freeform practice — chain any sequence, cast every jutsu</span>
+      </button>
+
+      <button id="btn-trial" class="mode-card" style="--accent:#59d7ff">
+        <span class="mode-kanji">試練</span>
+        <span class="mode-name">Trial</span>
+        <span class="mode-desc">Pick a jutsu, perform its full sequence against the clock</span>
+      </button>
+
+      <button id="btn-duel" class="mode-card" style="--accent:#c9b6ff">
+        <span class="mode-kanji">決闘</span>
+        <span class="mode-name">Duel</span>
+        <span class="mode-desc">Fight a shadow clone — block its jutsu with counter elements</span>
+      </button>
+    </div>
+
+    <div id="trial-picker">
+      <div id="trial-grid"></div>
+    </div>
+
+    <div id="demo-banner" hidden>
+      <b>Demo mode:</b> perform signs with keys
+      <span id="sign-keymap"></span>
+    </div>
+
+    <footer class="credits">
+      hand tracking: MediaPipe · classifier: RandomForest (97.5% test acc) via ONNX · a fan project
+    </footer>
+  </section>
+
+  <!-- ============ GAME ============ -->
+  <section id="screen-game" hidden>
+    <div id="stage">
+      <video id="camera" autoplay playsinline muted></video>
+      <canvas id="fx"></canvas>
+
+      <div id="banner"></div>
+
+      <div id="hud-top">
+        <button id="btn-back">← menu</button>
+        <div id="sign-readout">
+          <div id="hold-ring"><span id="current-sign">show a sign</span></div>
+          <div id="engine-status"></div>
+        </div>
+        <div id="recent-signs"></div>
+      </div>
+
+      <div id="hud-trial" hidden>
+        <div id="trial-name"></div>
+        <div id="trial-seq"></div>
+      </div>
+
+      <div id="hud-duel" hidden>
+        <div class="hp-row">
+          <div class="hp-block">
+            <label>You <b id="hp-player-num">100</b></label>
+            <div class="hp-track"><div id="hp-player" class="hp-fill you"></div></div>
+          </div>
+          <div class="hp-block right">
+            <label>Shadow Clone <b id="hp-clone-num">120</b></label>
+            <div class="hp-track"><div id="hp-clone" class="hp-fill clone"></div></div>
+          </div>
+        </div>
+        <div id="incoming" hidden>
+          <span>⚠ incoming: <b id="incoming-name"></b></span>
+          <div class="incoming-track"><div id="incoming-bar"></div></div>
+        </div>
+      </div>
+
+      <aside id="dex" hidden>
+        <h3>Jutsu Scroll</h3>
+        <div id="dex-list"></div>
+      </aside>
+
+      <div id="result-overlay" hidden>
+        <div class="result-card">
+          <h2 id="result-title"></h2>
+          <p id="result-subtitle"></p>
+          <div class="result-actions">
+            <button id="btn-again">Again</button>
+            <button id="btn-result-menu">Menu</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
